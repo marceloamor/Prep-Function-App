@@ -12,6 +12,20 @@ files = [
 ]
 
 [[package]]
+name = "azure-functions"
+version = "1.15.0"
+description = "Azure Functions for Python"
+optional = false
+python-versions = "*"
+files = [
+    {file = "azure-functions-1.15.0.tar.gz", hash = "sha256:22ff8644a61c2bf3fe727ae9732e4e786ea671c2c11bde2c29d4ef43dfa40cd9"},
+    {file = "azure_functions-1.15.0-py3-none-any.whl", hash = "sha256:523abd372321a2668b03918bd23db542f0148b07a2ac4d23da90e555f0303476"},
+]
+
+[package.extras]
+dev = ["coverage", "flake8 (>=4.0.1,<4.1.0)", "flake8-logging-format", "mypy", "pytest", "pytest-cov", "requests (==2.*)"]
+
+[[package]]
 name = "greenlet"
 version = "2.0.2"
 description = "Lightweight in-process concurrent programming"
@@ -325,6 +339,20 @@ files = [
 ]
 
 [[package]]
+name = "python-dateutil"
+version = "2.8.2"
+description = "Extensions to the standard Python datetime module"
+optional = false
+python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,>=2.7"
+files = [
+    {file = "python-dateutil-2.8.2.tar.gz", hash = "sha256:0123cacc1627ae19ddf3c27a5de5bd67ee4586fbdd6440d9748f8abb483d3e86"},
+    {file = "python_dateutil-2.8.2-py2.py3-none-any.whl", hash = "sha256:961d03dc3453ebbc59dbdea9e4e11c5651520a876d0f4db161e8674aae935da9"},
+]
+
+[package.dependencies]
+six = ">=1.5"
+
+[[package]]
 name = "redis"
 version = "4.6.0"
 description = "Python client for Redis database and key-value store"
@@ -342,6 +370,17 @@ hiredis = {version = ">=1.0.0", optional = true, markers = "extra == \"hiredis\"
 [package.extras]
 hiredis = ["hiredis (>=1.0.0)"]
 ocsp = ["cryptography (>=36.0.1)", "pyopenssl (==20.0.1)", "requests (>=2.26.0)"]
+
+[[package]]
+name = "six"
+version = "1.16.0"
+description = "Python 2 and 3 compatibility utilities"
+optional = false
+python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*"
+files = [
+    {file = "six-1.16.0-py2.py3-none-any.whl", hash = "sha256:8abb2f1d86890a2dfb989f9a77cfcfd3e47c2a354b01111771326f8aa26e0254"},
+    {file = "six-1.16.0.tar.gz", hash = "sha256:1e61c37477a1626458e36f7b1d82aa5c9b094fa4802892072e49de9c60c4c926"},
+]
 
 [[package]]
 name = "sqlalchemy"
@@ -457,7 +496,26 @@ files = [
     {file = "tzdata-2023.3.tar.gz", hash = "sha256:11ef1e08e54acb0d4f95bdb1be05da659673de4acbd21bf9c69e94cc5e907a3a"},
 ]
 
+[[package]]
+name = "upedata"
+version = "0.1.8"
+description = "A general collection of ORM classes for use on internal dynamic and static data"
+optional = false
+python-versions = ">=3.10,<4.0"
+files = [
+    {file = "upedata-0.1.8-py3-none-any.whl", hash = "sha256:4b1fdae163e0826ee10d1411c371100f2c2a3f5fa5ceb784c1b147637c515ff9"},
+]
+
+[package.dependencies]
+psycopg = {version = ">=3.1.9,<4.0.0", extras = ["binary"]}
+sqlalchemy = ">=2.0.18,<3.0.0"
+sqlalchemy-json = ">=0.6.0,<0.7.0"
+
+[package.source]
+type = "file"
+url = "dependencies/upedata-0.1.8-py3-none-any.whl"
+
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "9bd28745f9a2c9bf0404b8f65cabffc92bc981186873436dd4901541f3476e19"
+content-hash = "d2dbfbe4ce56a0aeb738bf3c9ed5d7a31e8ee6c4d4bbc0a07bb167cadbf05f07"
