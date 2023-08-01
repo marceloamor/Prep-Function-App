@@ -21,7 +21,9 @@ def get_good_friday_date(year: int) -> date:
     return easter.easter(year) - relativedelta.relativedelta(days=2)
 
 
-def get_lme_prompt_map(non_prompts: List[date]) -> Dict[date, date]:
+def get_lme_prompt_map(
+    non_prompts: List[date], _current_date=datetime.today()
+) -> Dict[date, date]:
     """Using a list of non-prompt dates and the LME rulebook, generates
     a mapping between dates and corresponding valid prompts that they will
     usually roll to.
@@ -37,7 +39,7 @@ def get_lme_prompt_map(non_prompts: List[date]) -> Dict[date, date]:
     :rtype: Dict[date, date]
     """
     prompt_map: Dict[date, date] = {}
-    now_dt = datetime.today()
+    now_dt = _current_date
     offset_1d = relativedelta.relativedelta(days=1)
 
     next_good_friday_date = get_good_friday_date(now_dt.year)
@@ -47,7 +49,7 @@ def get_lme_prompt_map(non_prompts: List[date]) -> Dict[date, date]:
         # year in this prompt map
         next_good_friday_date = get_good_friday_date(now_dt.year + 1)
 
-    possible_prompt_to_map = now_dt + offset_1d
+    possible_prompt_to_map = now_dt
     while relativedelta.relativedelta(possible_prompt_to_map, now_dt).months < 4:
         valid_prompt_guess = possible_prompt_to_map
 
@@ -85,8 +87,8 @@ def get_lme_prompt_map(non_prompts: List[date]) -> Dict[date, date]:
                 while valid_prompt_guess in non_prompts:
                     valid_prompt_guess -= offset_1d
             elif (
-                valid_prompt_guess.month() == 12
-                and valid_prompt_guess.day() == 25
+                valid_prompt_guess.month == 12
+                and valid_prompt_guess.day == 25
                 and valid_prompt_guess.weekday() in (1, 2, 3, 4)
             ):
                 while valid_prompt_guess in non_prompts:
@@ -97,6 +99,8 @@ def get_lme_prompt_map(non_prompts: List[date]) -> Dict[date, date]:
             prompt_map[possible_prompt_to_map.date()] = valid_prompt_guess.date()
 
         possible_prompt_to_map += offset_1d
+
+    return prompt_map
 
 
 def get_3m_date(current_datetime: datetime, lme_prompt_map: Dict[date, date]) -> date:
