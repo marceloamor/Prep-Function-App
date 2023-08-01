@@ -1,10 +1,11 @@
-from helpers.lme_date_calculation_functions import get_3m_date
+from helpers.lme_date_calculation_functions import get_3m_date, get_lme_prompt_map
 from upedata.static_data import product, holiday
 from exceptions import ProductNotFound
 
 from dateutil import relativedelta
 import sqlalchemy.orm
 import sqlalchemy
+import requests
 import redis
 
 from datetime import datetime, date
@@ -33,4 +34,5 @@ def update_lme_relative_forward_dates(
         product_holidays = lme_copper_product.holidays
         holiday_dates = [holiday_obj.holiday_date for holiday_obj in product_holidays]
 
-    lme_3m_date = get_3m_date(now_london_datetime.date(), holiday_dates)
+    lme_prompt_map = get_lme_prompt_map(holiday_dates)
+    lme_3m_date = get_3m_date(now_london_datetime, lme_prompt_map)

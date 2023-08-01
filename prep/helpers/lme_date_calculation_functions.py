@@ -136,3 +136,7 @@ def get_3m_date(current_datetime: datetime, lme_prompt_map: Dict[date, date]) ->
             break
 
     return mapped_guess_3m_datetime
+
+
+def get_cash_date(current_datetime: datetime, lme_prompt_map: Dict[date, date]) -> date:
+    pass

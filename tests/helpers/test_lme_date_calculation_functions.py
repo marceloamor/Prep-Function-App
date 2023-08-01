@@ -116,3 +116,21 @@ def test_lme_prompt_map_has_no_indirect_mappings(test_base_datetime):
                 # This occurs at the end of the map, which can sometimes be open
                 pass
     assert not encountered_indirect_mapping
+
+
+@pytest.mark.parametrize(
+    ["base_datetime", "expected_datetime"],
+    [
+        [datetime(2023, 1, 3), datetime(2023, 1, 5)],
+        [datetime(2023, 6, 30), datetime(2023, 7, 5)],
+        [datetime(2023, 11, 30), datetime(2023, 12, 4)],
+        [datetime(2024, 3, 28), datetime(2023, 4, 3)],
+    ],
+)
+def test_get_cash_date(base_datetime, expected_datetime):
+    assert (
+        lme_date_calculation_functions.get_cash_date(
+            base_datetime, LME_2023_THROUGH_2024_NON_PROMPTS
+        )
+        == expected_datetime
+    )
