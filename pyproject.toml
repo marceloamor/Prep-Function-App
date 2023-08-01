@@ -15,6 +15,7 @@ orjson = "^3.9.2"
 azure-functions = "^1.15.0"
 python-dateutil = "^2.8.2"
 upedata = {path = "dependencies/upedata-0.1.8-py3-none-any.whl"}
+requests = "^2.31.0"
 
 
 [tool.poetry.group.dev.dependencies]
