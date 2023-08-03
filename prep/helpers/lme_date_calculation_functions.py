@@ -1,3 +1,5 @@
+from upedata.static_data import Holiday
+
 from dateutil import relativedelta, easter
 
 from datetime import date, datetime
@@ -138,5 +140,39 @@ def get_3m_date(current_datetime: datetime, lme_prompt_map: Dict[date, date]) ->
     return mapped_guess_3m_datetime
 
 
-def get_cash_date(current_datetime: datetime, lme_prompt_map: Dict[date, date]) -> date:
-    pass
+def get_cash_date(
+    current_datetime: datetime, lme_product_holidays: List[Holiday]
+) -> date:
+    full_closure_dates = []
+    non_settlement_business_dates = []
+    business_days_passed = 0
+    current_datetime += relativedelta.relativedelta(hours=4, minutes=29)
+    for holiday in lme_product_holidays:
+        if holiday.is_closure_date:
+            full_closure_dates.append(holiday.holiday_date)
+        else:
+            non_settlement_business_dates.append(holiday.holiday_date)
+
+    loops = 0
+    max_loops = 25
+    while loops < max_loops:
+        if (
+            current_datetime.weekday() > 4
+            or current_datetime.date() in full_closure_dates
+        ):
+            loops += 1
+            current_datetime += relativedelta.relativedelta(days=1)
+            continue
+
+        if (
+            business_days_passed > 1
+            and current_datetime.date() not in non_settlement_business_dates
+        ):
+            # this is the definition of a cash date
+            break
+
+        business_days_passed += 1
+        loops += 1
+        current_datetime += relativedelta.relativedelta(days=1)
+
+    return current_datetime.date()
