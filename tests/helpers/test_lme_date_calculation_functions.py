@@ -263,7 +263,6 @@ def test_get_all_valid_monthly_prompts(base_datetime: datetime, months_forward: 
     assert len(monthly_prompts) == months_forward, "More months generated than expected"
 
 
-@pytest.mark.skip()
 @pytest.mark.parametrize(
     "base_datetime",
     [
@@ -282,7 +281,21 @@ def test_get_all_valid_monthly_prompts(base_datetime: datetime, months_forward: 
     ],
 )
 def test_get_all_valid_weekly_prompts(base_datetime: datetime):
-    weekly_prompts = lme_date_calc_funcs.get_all_valid_weekly_prompts(base_datetime)
+    lme_prompt_map = lme_date_calc_funcs.get_lme_prompt_map(
+        LME_2023_THROUGH_2025_NON_PROMPTS, _current_date=base_datetime
+    )
+    weekly_prompts = lme_date_calc_funcs.get_all_valid_weekly_prompts(
+        base_datetime, lme_prompt_map
+    )
 
     for weekly_prompt in weekly_prompts:
-        pass
+        assert weekly_prompt.weekday() == 2, "Weekly prompts are only on Wednesdays"
+
+    relative_diff_to_final_weekly = relativedelta.relativedelta(
+        weekly_prompts[-1], base_datetime
+    )
+    logging.warning("%s, \n%s", base_datetime, weekly_prompts)
+    assert relative_diff_to_final_weekly.months in (
+        5,
+        6,
+    ), "Weekly prompts run to the six month out"
