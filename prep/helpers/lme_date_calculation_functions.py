@@ -2,8 +2,8 @@ from upedata.static_data import Holiday
 
 from dateutil import relativedelta, easter
 
+from typing import Dict, List, Optional
 from datetime import date, datetime
-from typing import Dict, List
 import logging
 
 
@@ -176,3 +176,40 @@ def get_cash_date(
         current_datetime += relativedelta.relativedelta(days=1)
 
     return current_datetime.date()
+
+
+def get_tom_date(
+    current_datetime: datetime, lme_product_holidays: List[Holiday]
+) -> Optional[date]:
+    full_closure_dates = []
+    non_settlement_business_dates = []
+    business_days_passed = 0
+    current_datetime += relativedelta.relativedelta(hours=4, minutes=29)
+    for holiday in lme_product_holidays:
+        if holiday.is_closure_date:
+            full_closure_dates.append(holiday.holiday_date)
+        else:
+            non_settlement_business_dates.append(holiday.holiday_date)
+
+    loops = 0
+    max_loops = 25
+    business_days_passed = 0
+    while loops < max_loops:
+        if (
+            current_datetime.weekday() > 4
+            or current_datetime.date() in full_closure_dates
+        ):
+            pass
+        elif current_datetime.date() in non_settlement_business_dates:
+            if business_days_passed != 0:
+                return None
+            business_days_passed += 1
+        elif business_days_passed != 0:
+            return current_datetime.date()
+        else:
+            business_days_passed += 1
+
+        loops += 1
+        current_datetime += relativedelta.relativedelta(days=1)
+
+    return None

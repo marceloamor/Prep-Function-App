@@ -152,10 +152,40 @@ def test_lme_prompt_map_has_no_indirect_mappings(test_base_datetime):
         [datetime(2024, 3, 28, 13, 30), date(2024, 4, 3)],
         [datetime(2024, 12, 24, 13, 30), date(2024, 12, 30)],
         [datetime(2024, 12, 24, 19, 31), date(2024, 12, 31)],
+        [datetime(2025, 6, 18, 3, 59, 10), date(2025, 6, 20)],
+        [datetime(2025, 6, 18, 20, 59, 10), date(2025, 6, 23)],
+        [datetime(2025, 6, 19, 14), date(2025, 6, 23)],
+        [datetime(2025, 6, 19, 19, 31), date(2025, 6, 24)],
+        [datetime(2025, 10, 10, 12, 30), date(2025, 10, 14)],
+        [datetime(2025, 10, 10, 19, 31), date(2025, 10, 15)],
     ],
 )
 def test_get_cash_date(base_datetime, expected_date):
     assert (
         lme_date_calculation_functions.get_cash_date(base_datetime, MOCK_HOLIDAYS)
+        == expected_date
+    )
+
+
+@pytest.mark.parametrize(
+    ["base_datetime", "expected_date"],
+    [
+        [datetime(2023, 11, 21, 12, 15), date(2023, 11, 22)],
+        [datetime(2023, 11, 22, 15, 51), None],
+        [datetime(2023, 11, 30, 15, 1), date(2023, 12, 1)],
+        [datetime(2024, 3, 28, 13, 30), date(2024, 4, 2)],
+        [datetime(2024, 12, 24, 13, 30), date(2024, 12, 27)],
+        [datetime(2024, 12, 24, 19, 31), date(2024, 12, 30)],
+        [datetime(2025, 6, 18, 3, 59, 10), None],
+        [datetime(2025, 6, 18, 20, 59, 10), date(2025, 6, 20)],
+        [datetime(2025, 6, 19, 14), date(2025, 6, 20)],
+        [datetime(2025, 6, 19, 19, 31), date(2025, 6, 23)],
+        [datetime(2025, 10, 10, 12, 30), None],
+        [datetime(2025, 10, 10, 19, 31), date(2025, 10, 14)],
+    ],
+)
+def test_get_tom_date(base_datetime, expected_date):
+    assert (
+        lme_date_calculation_functions.get_tom_date(base_datetime, MOCK_HOLIDAYS)
         == expected_date
     )
