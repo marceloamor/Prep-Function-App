@@ -121,6 +121,7 @@ def test_lme_prompt_map_has_no_circular_mappings(test_base_datetime):
         datetime(2023, 6, 30),
         datetime(2023, 11, 30),
         datetime(2024, 4, 1),
+        datetime(2024, 11, 15),
         datetime(2025, 3, 5),
     ],
 )
@@ -142,6 +143,27 @@ def test_lme_prompt_map_has_no_indirect_mappings(test_base_datetime):
                 # This occurs at the end of the map, which can sometimes be open
                 pass
     assert not encountered_indirect_mapping
+
+
+@pytest.mark.parametrize(
+    ["base_datetime", "expected_3m_date"],
+    [
+        [datetime(2023, 11, 30, 15, 35), date(2024, 2, 29)],
+        [datetime(2024, 2, 6, 15, 35), date(2024, 5, 7)],
+        [datetime(2024, 3, 1, 5, 35), date(2024, 5, 31)],
+        [datetime(2024, 11, 15), date(2025, 2, 14)],
+        [datetime(2025, 8, 30), date(2025, 11, 28)],
+        [datetime(2025, 9, 26), date(2025, 12, 29)],
+    ],
+)
+def test_get_3m_date(base_datetime, expected_3m_date):
+    lme_prompt_map = lme_date_calc_funcs.get_lme_prompt_map(
+        LME_2023_THROUGH_2025_NON_PROMPTS, _current_date=base_datetime
+    )
+    calculated_3m_date = lme_date_calc_funcs.get_3m_date(base_datetime, lme_prompt_map)
+    logging.warning("LME prompt map for failed test was:\n%s", lme_prompt_map)
+
+    assert calculated_3m_date == expected_3m_date
 
 
 @pytest.mark.parametrize(
@@ -208,7 +230,9 @@ def test_get_tom_date(base_datetime, expected_date):
     ],
 )
 def test_get_all_valid_monthly_prompts(base_datetime: datetime, months_forward: int):
-    monthly_prompts = lme_date_calc_funcs.get_valid_monthly_prompts(base_datetime)
+    monthly_prompts = lme_date_calc_funcs.get_valid_monthly_prompts(
+        base_datetime, months_forward
+    )
 
     for monthly_prompt in monthly_prompts:
         expected_third_wednesday = monthly_prompt + relativedelta.relativedelta(
@@ -225,8 +249,40 @@ def test_get_all_valid_monthly_prompts(base_datetime: datetime, months_forward: 
         assert (
             monthly_prompt == expected_third_wednesday
         ), "Monthly prompts must fall on the third Wednesday of the Month"
+        assert (
+            monthly_prompt.hour == 19
+            and monthly_prompt.minute == 30
+            and monthly_prompt.second == 0
+            and monthly_prompt.microsecond == 0
+        ), 'LME prompts "expire" at the close (19:30)'
 
     assert (
         relativedelta.relativedelta(monthly_prompts[-1], base_datetime).months
         <= months_forward
-    )
+    ), f"Last month in the list was further out than {months_forward} months"
+    assert len(monthly_prompts) == months_forward, "More months generated than expected"
+
+
+@pytest.mark.skip()
+@pytest.mark.parametrize(
+    "base_datetime",
+    [
+        datetime(2023, 11, 21, 12, 15),
+        datetime(2023, 11, 22, 15, 51),
+        datetime(2023, 11, 30, 15, 1),
+        datetime(2024, 3, 28, 13, 30),
+        datetime(2024, 12, 24, 13, 30),
+        datetime(2024, 12, 24, 19, 31),
+        datetime(2025, 6, 18, 3, 59, 10),
+        datetime(2025, 6, 18, 20, 59, 10),
+        datetime(2025, 6, 19, 14),
+        datetime(2025, 6, 19, 19, 31),
+        datetime(2025, 10, 10, 12, 30),
+        datetime(2025, 10, 10, 19, 31),
+    ],
+)
+def test_get_all_valid_weekly_prompts(base_datetime: datetime):
+    weekly_prompts = lme_date_calc_funcs.get_all_valid_weekly_prompts(base_datetime)
+
+    for weekly_prompt in weekly_prompts:
+        pass

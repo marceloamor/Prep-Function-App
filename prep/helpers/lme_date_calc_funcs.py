@@ -54,7 +54,7 @@ def get_lme_prompt_map(
 
     possible_prompt_to_map = now_dt
     while relativedelta.relativedelta(possible_prompt_to_map, now_dt).months < 4:
-        valid_prompt_guess = possible_prompt_to_map
+        valid_prompt_guess = copy.copy(possible_prompt_to_map)
 
         if valid_prompt_guess.date() not in non_prompts:
             # here will just be checking weekends and making sure they roll in the correct
@@ -82,25 +82,28 @@ def get_lme_prompt_map(
                         or valid_prompt_guess.date() in non_prompts
                     ):
                         valid_prompt_guess += offset_1d
-            prompt_map[possible_prompt_to_map.date()] = valid_prompt_guess.date()
-
         else:
             # and now the joys of non-prompts
             if valid_prompt_guess.date() == next_good_friday_date:
-                while valid_prompt_guess in non_prompts:
+                while valid_prompt_guess.date() in non_prompts + [
+                    next_good_friday_date
+                ]:
                     valid_prompt_guess -= offset_1d
             elif (
                 valid_prompt_guess.month == 12
                 and valid_prompt_guess.day == 25
                 and valid_prompt_guess.weekday() in (1, 2, 3, 4)
             ):
-                while valid_prompt_guess in non_prompts:
+                while valid_prompt_guess.date() in non_prompts:
                     valid_prompt_guess -= offset_1d
             else:
-                while valid_prompt_guess in non_prompts:
+                while (
+                    valid_prompt_guess.date() in non_prompts
+                    or valid_prompt_guess.weekday() >= 5
+                ):
                     valid_prompt_guess += offset_1d
-            prompt_map[possible_prompt_to_map.date()] = valid_prompt_guess.date()
 
+        prompt_map[possible_prompt_to_map.date()] = valid_prompt_guess.date()
         possible_prompt_to_map += offset_1d
 
     return prompt_map
@@ -119,7 +122,7 @@ def get_3m_date(current_datetime: datetime, lme_prompt_map: Dict[date, date]) ->
     :rtype: date
     """
     guess_3m_datetime = (
-        current_datetime + relativedelta.relativedelta(months=3)
+        current_datetime + relativedelta.relativedelta(months=3, hours=4, minutes=29)
     ).date()
     mapped_guess_3m_datetime = lme_prompt_map[guess_3m_datetime]
     i = 1
@@ -256,6 +259,15 @@ def get_tom_date(
 def get_valid_monthly_prompts(
     current_datetime: datetime, forward_months: Optional[int] = 18
 ) -> List[datetime]:
+    """Generates a list of the monthly prompt dates for the LME
+
+    :param current_datetime: The current datetime
+    :type current_datetime: datetime
+    :param forward_months: Number of months forward to generate, defaults to 18
+    :type forward_months: Optional[int], optional
+    :return: List of LME monthly forward prompt dates
+    :rtype: List[datetime]
+    """
     one_month_offset = relativedelta.relativedelta(months=1)
 
     third_wednesday_monthly_prompts = []
@@ -276,3 +288,7 @@ def get_valid_monthly_prompts(
         loops += 1
 
     return third_wednesday_monthly_prompts
+
+
+def get_all_valid_weekly_prompts(current_datetime: datetime) -> List[datetime]:
+    pass
