@@ -1,4 +1,4 @@
-from helpers.lme_date_calculation_functions import get_3m_date, get_lme_prompt_map
+from prep.helpers.lme_date_calc_funcs import get_3m_date, get_lme_prompt_map
 from upedata.static_data import product, holiday
 from exceptions import ProductNotFound
 

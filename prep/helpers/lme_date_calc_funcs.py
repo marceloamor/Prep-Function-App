@@ -5,6 +5,7 @@ from dateutil import relativedelta, easter
 from typing import Dict, List, Optional
 from datetime import date, datetime
 import logging
+import copy
 
 
 logger = logging.getLogger("prep.helpers")
@@ -143,6 +144,24 @@ def get_3m_date(current_datetime: datetime, lme_prompt_map: Dict[date, date]) ->
 def get_cash_date(
     current_datetime: datetime, lme_product_holidays: List[Holiday]
 ) -> date:
+    """Calculates the cash date from the current datetime and a set of LME
+    "holidays".
+
+    Cash (LME Rulebook, Part 1.1 Definitions, Page 1-4 January 2023 Edition)
+
+    in relation to the period between 19.31 hours on one Business Day and
+    19.30 hours on the next Business Day and Contracts entered into in
+    that period, the first Settlement Business Day which falls after the
+    next following Business Day (also referred to as "SPOT");
+
+    :param current_datetime: The current datetime
+    :type current_datetime: datetime
+    :param lme_product_holidays: A list of LME holidays, closure days,
+    non-settlement days, etc.
+    :type lme_product_holidays: List[Holiday]
+    :return: The calculated cash date
+    :rtype: date
+    """
     full_closure_dates = []
     non_settlement_business_dates = []
     business_days_passed = 0
@@ -181,6 +200,25 @@ def get_cash_date(
 def get_tom_date(
     current_datetime: datetime, lme_product_holidays: List[Holiday]
 ) -> Optional[date]:
+    """Calculated the "Cash Today" or "TOM" date from the current datetime
+    if there is one, else returns `None`.
+
+    Cash Today (LME Rulebook, Part 1.1 Definitions, Page 1-5 January 2023 Edition)
+
+    in relation to Contracts entered into in the period between 19.31 hours on one
+    Business Day and 12.30 hours on the next Business Day, the first Settlement
+    Business Day after the latter Business Day save that there will be no Prompt
+    Date for Cash Today where Cash Today is a Business Day but not a Settlement
+    Business Day (also referred to as "TOM" or "tomorrow");
+
+    :param current_datetime: The current datetime
+    :type current_datetime: datetime
+    :param lme_product_holidays: A list of LME holidays, closure days,
+    non-settlement days, etc.
+    :type lme_product_holidays: List[Holiday]
+    :return: The calculated TOM date, if there is one, else None
+    :rtype: Optional[date]
+    """
     full_closure_dates = []
     non_settlement_business_dates = []
     business_days_passed = 0
@@ -213,3 +251,28 @@ def get_tom_date(
         current_datetime += relativedelta.relativedelta(days=1)
 
     return None
+
+
+def get_valid_monthly_prompts(
+    current_datetime: datetime, forward_months: Optional[int] = 18
+) -> List[datetime]:
+    one_month_offset = relativedelta.relativedelta(months=1)
+
+    third_wednesday_monthly_prompts = []
+    loops = 0
+    while loops < forward_months:
+        third_wednesday_monthly_prompts.append(
+            current_datetime
+            + relativedelta.relativedelta(
+                day=1,
+                weekday=relativedelta.WE(3),
+                hour=19,
+                minute=30,
+                second=0,
+                microsecond=0,
+            )
+        )
+        current_datetime += one_month_offset
+        loops += 1
+
+    return third_wednesday_monthly_prompts

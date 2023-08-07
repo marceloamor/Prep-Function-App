@@ -1,6 +1,7 @@
-from prep.helpers import lme_date_calculation_functions
+from prep.helpers import lme_date_calc_funcs
 from upedata.static_data import Holiday
 
+from dateutil import relativedelta
 import pytest
 
 from datetime import date, datetime
@@ -47,7 +48,7 @@ BASE_HOLIDAY_DATA = [
     ("2025-12-26", 1.0, True),
 ]
 
-LME_2023_THROUGH_2024_NON_PROMPTS = [
+LME_2023_THROUGH_2025_NON_PROMPTS = [
     datetime.strptime(str_date, r"%Y-%m-%d").date()
     for str_date, _, _ in BASE_HOLIDAY_DATA
 ]
@@ -72,9 +73,7 @@ MOCK_HOLIDAYS = [
     ],
 )
 def test_get_good_friday_date(input_year, expected_date):
-    assert expected_date == lme_date_calculation_functions.get_good_friday_date(
-        input_year
-    )
+    assert expected_date == lme_date_calc_funcs.get_good_friday_date(input_year)
 
 
 @pytest.mark.parametrize(
@@ -84,11 +83,12 @@ def test_get_good_friday_date(input_year, expected_date):
         datetime(2023, 6, 30),
         datetime(2023, 11, 30),
         datetime(2024, 4, 1),
+        datetime(2025, 3, 5),
     ],
 )
 def test_lme_prompt_map_has_no_circular_mappings(test_base_datetime):
-    lme_prompt_map = lme_date_calculation_functions.get_lme_prompt_map(
-        LME_2023_THROUGH_2024_NON_PROMPTS, test_base_datetime
+    lme_prompt_map = lme_date_calc_funcs.get_lme_prompt_map(
+        LME_2023_THROUGH_2025_NON_PROMPTS, test_base_datetime
     )
 
     # I can't think of a more elegant way to do this so brute force it is
@@ -121,11 +121,12 @@ def test_lme_prompt_map_has_no_circular_mappings(test_base_datetime):
         datetime(2023, 6, 30),
         datetime(2023, 11, 30),
         datetime(2024, 4, 1),
+        datetime(2025, 3, 5),
     ],
 )
 def test_lme_prompt_map_has_no_indirect_mappings(test_base_datetime):
-    lme_prompt_map = lme_date_calculation_functions.get_lme_prompt_map(
-        LME_2023_THROUGH_2024_NON_PROMPTS, _current_date=test_base_datetime
+    lme_prompt_map = lme_date_calc_funcs.get_lme_prompt_map(
+        LME_2023_THROUGH_2025_NON_PROMPTS, _current_date=test_base_datetime
     )
 
     # I can't think of a more elegant way to do this so brute force it is
@@ -162,8 +163,7 @@ def test_lme_prompt_map_has_no_indirect_mappings(test_base_datetime):
 )
 def test_get_cash_date(base_datetime, expected_date):
     assert (
-        lme_date_calculation_functions.get_cash_date(base_datetime, MOCK_HOLIDAYS)
-        == expected_date
+        lme_date_calc_funcs.get_cash_date(base_datetime, MOCK_HOLIDAYS) == expected_date
     )
 
 
@@ -186,6 +186,47 @@ def test_get_cash_date(base_datetime, expected_date):
 )
 def test_get_tom_date(base_datetime, expected_date):
     assert (
-        lme_date_calculation_functions.get_tom_date(base_datetime, MOCK_HOLIDAYS)
-        == expected_date
+        lme_date_calc_funcs.get_tom_date(base_datetime, MOCK_HOLIDAYS) == expected_date
+    )
+
+
+@pytest.mark.parametrize(
+    ["base_datetime", "months_forward"],
+    [
+        [datetime(2023, 11, 21, 12, 15), 18],
+        [datetime(2023, 11, 22, 15, 51), 18],
+        [datetime(2023, 11, 30, 15, 1), 18],
+        [datetime(2024, 3, 28, 13, 30), 18],
+        [datetime(2024, 12, 24, 13, 30), 18],
+        [datetime(2024, 12, 24, 19, 31), 24],
+        [datetime(2025, 6, 18, 3, 59, 10), 18],
+        [datetime(2025, 6, 18, 20, 59, 10), 18],
+        [datetime(2025, 6, 19, 14), 10],
+        [datetime(2025, 6, 19, 19, 31), 18],
+        [datetime(2025, 10, 10, 12, 30), 18],
+        [datetime(2025, 10, 10, 19, 31), 6],
+    ],
+)
+def test_get_all_valid_monthly_prompts(base_datetime: datetime, months_forward: int):
+    monthly_prompts = lme_date_calc_funcs.get_valid_monthly_prompts(base_datetime)
+
+    for monthly_prompt in monthly_prompts:
+        expected_third_wednesday = monthly_prompt + relativedelta.relativedelta(
+            day=1,
+            weekday=relativedelta.WE(3),
+            hour=19,
+            minute=30,
+            second=0,
+            microsecond=0,
+        )
+        assert (
+            monthly_prompt.weekday() == 2
+        ), "Monthly prompts must fall on the third Wednesday of the Month"
+        assert (
+            monthly_prompt == expected_third_wednesday
+        ), "Monthly prompts must fall on the third Wednesday of the Month"
+
+    assert (
+        relativedelta.relativedelta(monthly_prompts[-1], base_datetime).months
+        <= months_forward
     )
