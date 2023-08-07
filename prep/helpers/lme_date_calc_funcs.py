@@ -327,6 +327,8 @@ def get_all_valid_weekly_prompts(
         < 6
     ):
         weekly_prompt_dates.append(next_wednesday)
-        next_wednesday += relativedelta.relativedelta(weeks=1)
+        next_wednesday += relativedelta.relativedelta(
+            weeks=1, hour=19, minute=30, second=0, microsecond=0
+        )
 
     return weekly_prompt_dates
