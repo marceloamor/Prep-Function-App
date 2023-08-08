@@ -17,7 +17,7 @@ import logging
                 symbol="xlme-lcu-usd",
                 short_name="lcu",
             ),
-            ["LCUX3"],
+            ["LCU 2023-11-08"],
             25,
         ]
     ],

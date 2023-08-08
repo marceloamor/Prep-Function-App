@@ -35,8 +35,7 @@ def gen_lme_futures(expiry_dates: List[datetime], product: Product) -> List[Futu
             new_lme_future = Future(
                 symbol=f"{product.symbol} f {expiry_date.strftime(r'%y-%m-%d')}",
                 display_name=(
-                    f"{product.short_name}{MONTH_CODE_MAPPING[expiry_date.month]}"
-                    f"{str(expiry_date.year)[-1]}"
+                    f"{product.short_name} {expiry_date.strftime(r'%Y-%m-%d')}"
                 ).upper(),
                 expiry=expiry_date,
                 multiplier=LME_FUTURE_MULTIPLIERS[product.short_name],
