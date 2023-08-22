@@ -16,7 +16,9 @@ LME_FUTURE_3M_FEED_ASSOC = {
 }
 
 
-def gen_lme_futures(expiry_dates: List[datetime], product: Product) -> List[Future]:
+def gen_lme_futures(
+    expiry_dates: List[datetime], product: Product, generate_options=False
+) -> List[Future]:
     static_data_futures = []
     product_3m_feed = PriceFeed(
         feed_id=LME_FUTURE_3M_FEED_ASSOC[product.short_name],
@@ -41,6 +43,23 @@ def gen_lme_futures(expiry_dates: List[datetime], product: Product) -> List[Futu
                 multiplier=LME_FUTURE_MULTIPLIERS[product.short_name],
                 product=product,
             )
+            product_3m_future_price_feed_assoc = FuturePriceFeedAssociation(
+                future=new_lme_future,
+                feed=product_3m_feed,
+                weighting=1.0,
+            )
+            product_relative_spread_feed = FuturePriceFeedAssociation(
+                future=new_lme_future,
+                feed=product_3m_relative_spread_feed,
+                weighting=1.0,
+            )
+            new_lme_future.underlying_feeds = [
+                product_3m_future_price_feed_assoc,
+                product_relative_spread_feed,
+            ]
+            if generate_options:
+                pass
+
         except KeyError:
             raise ProductNotFound(
                 f"Unable to find {product.short_name} in `LME_FUTURE_MULTIPLIERS`"

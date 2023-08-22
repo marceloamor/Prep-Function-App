@@ -19,7 +19,43 @@ import logging
             ),
             ["LCU 2023-11-08"],
             25,
-        ]
+        ],
+        [
+            [datetime(2023, 11, 8)],
+            Product(
+                symbol="xlme-lad-usd",
+                short_name="lad",
+            ),
+            ["LAD 2023-11-08"],
+            25,
+        ],
+        [
+            [datetime(2023, 11, 8)],
+            Product(
+                symbol="xlme-lzh-usd",
+                short_name="lzh",
+            ),
+            ["LZH 2023-11-08"],
+            25,
+        ],
+        [
+            [datetime(2024, 6, 8)],
+            Product(
+                symbol="xlme-pbd-usd",
+                short_name="pbd",
+            ),
+            ["PBD 2024-06-08"],
+            25,
+        ],
+        [
+            [datetime(2025, 11, 8)],
+            Product(
+                symbol="xlme-lnd-usd",
+                short_name="lnd",
+            ),
+            ["LND 2025-11-08"],
+            6,
+        ],
     ],
 )
 def test_generate_staticdata_lme_futures_from_prompts(
