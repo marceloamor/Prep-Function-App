@@ -9,7 +9,6 @@ import os
 
 app = func.FunctionApp()
 
-
 redis_host = os.getenv("REDIS_HOST")
 redis_port = int(os.getenv("REDIS_PORT"))
 redis_key = os.getenv("REDIS_KEY")
@@ -26,19 +25,19 @@ redis_conn = redis.Redis(
     retry_on_timeout=True,
 )
 
-pg_db_server_host = os.getenv("DB_SERVER_HOST")
-pg_db_server_port = int(os.getenv("DB_SERVER_PORT"))
-pg_db_server_username = os.getenv("DB_SERVER_USERNAME")
-pg_db_server_password = os.getenv("DB_SERVER_PASSWORD")
-pg_db_server_database = os.getenv("DB_SERVER_DATABASE")
+# pg_db_server_host = os.getenv("DB_SERVER_HOST")
+# pg_db_server_port = int(os.getenv("DB_SERVER_PORT"))
+# pg_db_server_username = os.getenv("DB_SERVER_USERNAME")
+# pg_db_server_password = os.getenv("DB_SERVER_PASSWORD")
+# pg_db_server_database = os.getenv("DB_SERVER_DATABASE")
 
 sqlalchemy_pg_url = sqlalchemy.URL(
     "postgresql+psycopg",
-    pg_db_server_username,
-    pg_db_server_password,
-    pg_db_server_host,
-    pg_db_server_port,
-    pg_db_server_database,
+    os.getenv("DB_SERVER_USERNAME"),
+    os.getenv("DB_SERVER_PASSWORD"),
+    os.getenv("DB_SERVER_HOST"),
+    int(os.getenv("DB_SERVER_PORT")),
+    os.getenv("DB_SERVER_DATABASE"),
     query={},
 )
 
