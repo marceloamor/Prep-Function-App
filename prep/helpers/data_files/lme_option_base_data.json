@@ -1,8 +1,8 @@
 {
   "shared": {
-    "time_type": "FULL_YEAR",
-    "vol_type": "STANDARD",
-    "display_name": "#{<option>.product.short_name}£O#{map_month_year_coded(<option>.expiry)}£ @{strike}£ @{call_or_put}£"
+    "time_type": 1,
+    "vol_type": 1,
+    "display_name": "#{<option>.product.short_name}£O#{map_month_year_coded(<option>.underlying_future.expiry)}£ @{strike}£ @{call_or_put}£"
   },
   "specific": {
     "xlme-lcu-usd": {
