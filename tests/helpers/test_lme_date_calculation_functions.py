@@ -149,19 +149,39 @@ def test_lme_prompt_map_has_no_indirect_mappings(test_base_datetime):
 @pytest.mark.parametrize(
     ["base_datetime", "expected_3m_date"],
     [
-        [datetime(2023, 11, 30, 15, 35), date(2024, 2, 29)],
-        [datetime(2024, 2, 6, 15, 35), date(2024, 5, 7)],
-        [datetime(2024, 3, 1, 5, 35), date(2024, 5, 31)],
-        [datetime(2024, 11, 15), date(2025, 2, 14)],
-        [datetime(2025, 8, 30), date(2025, 11, 28)],
-        [datetime(2025, 9, 26), date(2025, 12, 29)],
+        [
+            datetime(2023, 11, 30, 15, 35),
+            datetime(2024, 2, 29, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+        ],
+        [
+            datetime(2024, 2, 6, 15, 35),
+            datetime(2024, 5, 7, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+        ],
+        [
+            datetime(2024, 3, 1, 5, 35),
+            datetime(2024, 5, 31, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+        ],
+        [
+            datetime(2024, 11, 15),
+            datetime(2025, 2, 14, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+        ],
+        [
+            datetime(2025, 8, 30),
+            datetime(2025, 11, 28, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+        ],
+        [
+            datetime(2025, 9, 26),
+            datetime(2025, 12, 29, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+        ],
     ],
 )
 def test_get_3m_date(base_datetime, expected_3m_date):
     lme_prompt_map = lme_date_calc_funcs.get_lme_prompt_map(
         LME_2023_THROUGH_2025_NON_PROMPTS, _current_date=base_datetime
     )
-    calculated_3m_date = lme_date_calc_funcs.get_3m_date(base_datetime, lme_prompt_map)
+    calculated_3m_date = lme_date_calc_funcs.get_3m_datetime(
+        base_datetime, lme_prompt_map
+    )
     logging.warning("LME prompt map for failed test was:\n%s", lme_prompt_map)
 
     assert calculated_3m_date == expected_3m_date
@@ -170,23 +190,60 @@ def test_get_3m_date(base_datetime, expected_3m_date):
 @pytest.mark.parametrize(
     ["base_datetime", "expected_date"],
     [
-        [datetime(2023, 11, 21, 12, 15), date(2023, 11, 24)],
-        [datetime(2023, 11, 22, 15, 51), date(2023, 11, 24)],
-        [datetime(2023, 11, 30, 15, 1), date(2023, 12, 4)],
-        [datetime(2024, 3, 28, 13, 30), date(2024, 4, 3)],
-        [datetime(2024, 12, 24, 13, 30), date(2024, 12, 30)],
-        [datetime(2024, 12, 24, 19, 31), date(2024, 12, 31)],
-        [datetime(2025, 6, 18, 3, 59, 10), date(2025, 6, 20)],
-        [datetime(2025, 6, 18, 20, 59, 10), date(2025, 6, 23)],
-        [datetime(2025, 6, 19, 14), date(2025, 6, 23)],
-        [datetime(2025, 6, 19, 19, 31), date(2025, 6, 24)],
-        [datetime(2025, 10, 10, 12, 30), date(2025, 10, 14)],
-        [datetime(2025, 10, 10, 19, 31), date(2025, 10, 15)],
+        [
+            datetime(2023, 11, 21, 12, 15),
+            datetime(2023, 11, 24, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+        ],
+        [
+            datetime(2023, 11, 22, 15, 51),
+            datetime(2023, 11, 24, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+        ],
+        [
+            datetime(2023, 11, 30, 15, 1),
+            datetime(2023, 12, 4, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+        ],
+        [
+            datetime(2024, 3, 28, 13, 30),
+            datetime(2024, 4, 3, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+        ],
+        [
+            datetime(2024, 12, 24, 13, 30),
+            datetime(2024, 12, 30, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+        ],
+        [
+            datetime(2024, 12, 24, 19, 31),
+            datetime(2024, 12, 31, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+        ],
+        [
+            datetime(2025, 6, 18, 3, 59, 10),
+            datetime(2025, 6, 20, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+        ],
+        [
+            datetime(2025, 6, 18, 20, 59, 10),
+            datetime(2025, 6, 23, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+        ],
+        [
+            datetime(2025, 6, 19, 14),
+            datetime(2025, 6, 23, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+        ],
+        [
+            datetime(2025, 6, 19, 19, 31),
+            datetime(2025, 6, 24, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+        ],
+        [
+            datetime(2025, 10, 10, 12, 30),
+            datetime(2025, 10, 14, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+        ],
+        [
+            datetime(2025, 10, 10, 19, 31),
+            datetime(2025, 10, 15, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+        ],
     ],
 )
 def test_get_cash_date(base_datetime, expected_date):
     assert (
-        lme_date_calc_funcs.get_cash_date(base_datetime, MOCK_HOLIDAYS) == expected_date
+        lme_date_calc_funcs.get_cash_datetime(base_datetime, MOCK_HOLIDAYS)
+        == expected_date
     )
 
 
@@ -234,9 +291,9 @@ def test_get_cash_date(base_datetime, expected_date):
         ],
     ],
 )
-def test_get_tom_date(base_datetime, expected_datetime):
+def test_get_tom_datetime(base_datetime, expected_datetime):
     assert (
-        lme_date_calc_funcs.get_tom_date(base_datetime, MOCK_HOLIDAYS)
+        lme_date_calc_funcs.get_tom_datetime(base_datetime, MOCK_HOLIDAYS)
         == expected_datetime
     )
 
@@ -244,18 +301,18 @@ def test_get_tom_date(base_datetime, expected_datetime):
 @pytest.mark.parametrize(
     ["base_datetime", "months_forward"],
     [
-        [datetime(2023, 11, 21, 12, 15), 18],
-        [datetime(2023, 11, 22, 15, 51), 18],
-        [datetime(2023, 11, 30, 15, 1), 18],
-        [datetime(2024, 3, 28, 13, 30), 18],
-        [datetime(2024, 12, 24, 13, 30), 18],
-        [datetime(2024, 12, 24, 19, 31), 24],
-        [datetime(2025, 6, 18, 3, 59, 10), 18],
-        [datetime(2025, 6, 18, 20, 59, 10), 18],
-        [datetime(2025, 6, 19, 14), 10],
-        [datetime(2025, 6, 19, 19, 31), 18],
-        [datetime(2025, 10, 10, 12, 30), 18],
-        [datetime(2025, 10, 10, 19, 31), 6],
+        [datetime(2023, 11, 21, 12, 15, tzinfo=ZoneInfo("Europe/London")), 18],
+        [datetime(2023, 11, 22, 15, 51, tzinfo=ZoneInfo("Europe/London")), 18],
+        [datetime(2023, 11, 30, 15, 1, tzinfo=ZoneInfo("Europe/London")), 18],
+        [datetime(2024, 3, 28, 13, 30, tzinfo=ZoneInfo("Europe/London")), 18],
+        [datetime(2024, 12, 24, 13, 30, tzinfo=ZoneInfo("Europe/London")), 18],
+        [datetime(2024, 12, 24, 19, 31, tzinfo=ZoneInfo("Europe/London")), 24],
+        [datetime(2025, 6, 18, 3, 59, 10, tzinfo=ZoneInfo("Europe/London")), 18],
+        [datetime(2025, 6, 18, 20, 59, 10, tzinfo=ZoneInfo("Europe/London")), 18],
+        [datetime(2025, 6, 19, 14, tzinfo=ZoneInfo("Europe/London")), 10],
+        [datetime(2025, 6, 19, 19, 31, tzinfo=ZoneInfo("Europe/London")), 18],
+        [datetime(2025, 10, 10, 12, 30, tzinfo=ZoneInfo("Europe/London")), 18],
+        [datetime(2025, 10, 10, 19, 31, tzinfo=ZoneInfo("Europe/London")), 6],
     ],
 )
 def test_get_all_valid_monthly_prompts(base_datetime: datetime, months_forward: int):
@@ -267,7 +324,7 @@ def test_get_all_valid_monthly_prompts(base_datetime: datetime, months_forward: 
         expected_third_wednesday = monthly_prompt + relativedelta.relativedelta(
             day=1,
             weekday=relativedelta.WE(3),
-            hour=19,
+            hour=12,
             minute=30,
             second=0,
             microsecond=0,
@@ -279,11 +336,11 @@ def test_get_all_valid_monthly_prompts(base_datetime: datetime, months_forward: 
             monthly_prompt == expected_third_wednesday
         ), "Monthly prompts must fall on the third Wednesday of the Month"
         assert (
-            monthly_prompt.hour == 19
+            monthly_prompt.hour == 12
             and monthly_prompt.minute == 30
             and monthly_prompt.second == 0
             and monthly_prompt.microsecond == 0
-        ), 'LME prompts "expire" at the close (19:30)'
+        ), "LME prompts expire at the close (12:30)"
 
     assert (
         relativedelta.relativedelta(monthly_prompts[-1], base_datetime).months
@@ -295,18 +352,18 @@ def test_get_all_valid_monthly_prompts(base_datetime: datetime, months_forward: 
 @pytest.mark.parametrize(
     "base_datetime",
     [
-        datetime(2023, 11, 21, 12, 15),
-        datetime(2023, 11, 22, 15, 51),
-        datetime(2023, 11, 30, 15, 1),
-        datetime(2024, 3, 28, 13, 30),
-        datetime(2024, 12, 24, 13, 30),
-        datetime(2024, 12, 24, 19, 31),
-        datetime(2025, 6, 18, 3, 59, 10),
-        datetime(2025, 6, 18, 20, 59, 10),
-        datetime(2025, 6, 19, 14),
-        datetime(2025, 6, 19, 19, 31),
-        datetime(2025, 10, 10, 12, 30),
-        datetime(2025, 10, 10, 19, 31),
+        datetime(2023, 11, 21, 12, 15, tzinfo=ZoneInfo("Europe/London")),
+        datetime(2023, 11, 22, 15, 51, tzinfo=ZoneInfo("Europe/London")),
+        datetime(2023, 11, 30, 15, 1, tzinfo=ZoneInfo("Europe/London")),
+        datetime(2024, 3, 28, 13, 30, tzinfo=ZoneInfo("Europe/London")),
+        datetime(2024, 12, 24, 13, 30, tzinfo=ZoneInfo("Europe/London")),
+        datetime(2024, 12, 24, 19, 31, tzinfo=ZoneInfo("Europe/London")),
+        datetime(2025, 6, 18, 3, 59, 10, tzinfo=ZoneInfo("Europe/London")),
+        datetime(2025, 6, 18, 20, 59, 10, tzinfo=ZoneInfo("Europe/London")),
+        datetime(2025, 6, 19, 14, tzinfo=ZoneInfo("Europe/London")),
+        datetime(2025, 6, 19, 19, 31, tzinfo=ZoneInfo("Europe/London")),
+        datetime(2025, 10, 10, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+        datetime(2025, 10, 10, 19, 31, tzinfo=ZoneInfo("Europe/London")),
     ],
 )
 def test_get_all_valid_weekly_prompts(base_datetime: datetime):
