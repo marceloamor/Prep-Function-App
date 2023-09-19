@@ -57,23 +57,33 @@ def update_lme_relative_forward_dates(
         holiday_dates = [holiday_obj.holiday_date for holiday_obj in product_holidays]
 
         lme_prompt_map = lme_date_calc_funcs.get_lme_prompt_map(holiday_dates)
-        lme_3m_date = lme_date_calc_funcs.get_3m_date(
+        lme_3m_date = lme_date_calc_funcs.get_3m_datetime(
             now_london_datetime, lme_prompt_map
         )
-        lme_cash_date = lme_date_calc_funcs.get_cash_date(
+        lme_cash_date = lme_date_calc_funcs.get_cash_datetime(
             now_london_datetime, product_holidays
         )
-        lme_tom_date = lme_date_calc_funcs.get_tom_date(
+        lme_tom_date = lme_date_calc_funcs.get_tom_datetime(
             now_london_datetime, product_holidays
         )
-        lme_weekly_datetimes = (
-            lme_date_calc_funcs.get_all_valid_weekly_prompts(
-                now_london_datetime, lme_prompt_map
-            ),
+        lme_weekly_datetimes = lme_date_calc_funcs.get_all_valid_weekly_prompts(
+            now_london_datetime, lme_prompt_map
         )
         lme_monthly_datetimes = lme_date_calc_funcs.get_valid_monthly_prompts(
             now_london_datetime, forward_months=18
         )
+        if lme_tom_date is None:
+            future_expiries = set(
+                [lme_cash_date, lme_3m_date]
+                + lme_weekly_datetimes
+                + lme_monthly_datetimes
+            )
+        else:
+            future_expiries = set(
+                [lme_tom_date, lme_cash_date, lme_3m_date]
+                + lme_weekly_datetimes
+                + lme_monthly_datetimes
+            )
 
     redis_pipeline = redis_conn.pipeline()
     for key in LME_3M_DATE_KEYS:
