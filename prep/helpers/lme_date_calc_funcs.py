@@ -4,6 +4,7 @@ from dateutil import relativedelta, easter
 
 from typing import Dict, List, Optional
 from datetime import date, datetime
+from zoneinfo import ZoneInfo
 import logging
 import copy
 
@@ -202,7 +203,7 @@ def get_cash_date(
 
 def get_tom_date(
     current_datetime: datetime, lme_product_holidays: List[Holiday]
-) -> Optional[date]:
+) -> Optional[datetime]:
     """Calculated the "Cash Today" or "TOM" date from the current datetime
     if there is one, else returns `None`.
 
@@ -246,7 +247,13 @@ def get_tom_date(
                 return None
             business_days_passed += 1
         elif business_days_passed != 0:
-            return current_datetime.date()
+            return current_datetime.replace(
+                hour=12,
+                minute=30,
+                second=0,
+                microsecond=0,
+                tzinfo=ZoneInfo("Europe/London"),
+            )
         else:
             business_days_passed += 1
 

@@ -5,6 +5,7 @@ from dateutil import relativedelta
 import pytest
 
 from datetime import date, datetime
+from zoneinfo import ZoneInfo
 import logging
 
 
@@ -190,25 +191,53 @@ def test_get_cash_date(base_datetime, expected_date):
 
 
 @pytest.mark.parametrize(
-    ["base_datetime", "expected_date"],
+    ["base_datetime", "expected_datetime"],
     [
-        [datetime(2023, 11, 21, 12, 15), date(2023, 11, 22)],
+        [
+            datetime(2023, 11, 21, 12, 15),
+            datetime(2023, 11, 22, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+        ],
         [datetime(2023, 11, 22, 15, 51), None],
-        [datetime(2023, 11, 30, 15, 1), date(2023, 12, 1)],
-        [datetime(2024, 3, 28, 13, 30), date(2024, 4, 2)],
-        [datetime(2024, 12, 24, 13, 30), date(2024, 12, 27)],
-        [datetime(2024, 12, 24, 19, 31), date(2024, 12, 30)],
+        [
+            datetime(2023, 11, 30, 15, 1),
+            datetime(2023, 12, 1, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+        ],
+        [
+            datetime(2024, 3, 28, 13, 30),
+            datetime(2024, 4, 2, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+        ],
+        [
+            datetime(2024, 12, 24, 13, 30),
+            datetime(2024, 12, 27, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+        ],
+        [
+            datetime(2024, 12, 24, 19, 31),
+            datetime(2024, 12, 30, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+        ],
         [datetime(2025, 6, 18, 3, 59, 10), None],
-        [datetime(2025, 6, 18, 20, 59, 10), date(2025, 6, 20)],
-        [datetime(2025, 6, 19, 14), date(2025, 6, 20)],
-        [datetime(2025, 6, 19, 19, 31), date(2025, 6, 23)],
+        [
+            datetime(2025, 6, 18, 20, 59, 10),
+            datetime(2025, 6, 20, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+        ],
+        [
+            datetime(2025, 6, 19, 14),
+            datetime(2025, 6, 20, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+        ],
+        [
+            datetime(2025, 6, 19, 19, 31),
+            datetime(2025, 6, 23, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+        ],
         [datetime(2025, 10, 10, 12, 30), None],
-        [datetime(2025, 10, 10, 19, 31), date(2025, 10, 14)],
+        [
+            datetime(2025, 10, 10, 19, 31),
+            datetime(2025, 10, 14, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+        ],
     ],
 )
-def test_get_tom_date(base_datetime, expected_date):
+def test_get_tom_date(base_datetime, expected_datetime):
     assert (
-        lme_date_calc_funcs.get_tom_date(base_datetime, MOCK_HOLIDAYS) == expected_date
+        lme_date_calc_funcs.get_tom_date(base_datetime, MOCK_HOLIDAYS)
+        == expected_datetime
     )
 
 
