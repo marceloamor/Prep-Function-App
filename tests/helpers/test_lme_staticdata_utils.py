@@ -6,6 +6,7 @@ from upedata import enums as upe_enums
 import pytest
 
 from datetime import datetime, date
+from dateutil import relativedelta
 from typing import List, Dict
 from zoneinfo import ZoneInfo
 import logging
@@ -173,3 +174,44 @@ def test_generate_staticdata_lme_options_from_futures(
         ), "Vol surface model type mismatch"
         assert gen_option.time_type == expec_option.time_type, "Time type mistmatch"
         assert gen_option.vol_type == expec_option.vol_type, "Vol type mismatch"
+
+
+@pytest.mark.parametrize(
+    ["product", "populate_options", "months_forward"],
+    [
+        [Product(symbol="xlme-lad-usd", short_name="lad"), True, 18],
+        [Product(symbol="xlme-lnd-usd", short_name="lnd"), False, 12],
+    ],
+)
+def test_populate_full_curve(
+    product,
+    populate_options,
+    months_forward,
+    lme_2023_through_2025_non_prompts,
+    mock_holidays,
+):
+    locked_current_datetime = datetime(2023, 9, 1, 12, tzinfo=ZoneInfo("Europe/London"))
+
+    lme_futures_curve, futures, options = lme_staticdata_utils.populate_full_curve(
+        product,
+        lme_2023_through_2025_non_prompts,
+        mock_holidays,
+        populate_options=populate_options,
+        forward_months=months_forward,
+        _current_datetime=locked_current_datetime,
+    )
+
+    if not populate_options:
+        assert (
+            len(options) == 0,
+            "Options list length not zero even though they "
+            "were not meant to populate",
+        )
+    assert len(futures) > len(options), "Options should only exist on monthly prompts"
+
+    for option in options:
+        assert (
+            option.expiry + relativedelta.relativedelta(days=14)
+            in lme_futures_curve.monthlies,
+            "Option expiry + 14 days was not found in monthly set",
+        )
