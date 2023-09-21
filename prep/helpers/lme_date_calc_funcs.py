@@ -140,7 +140,10 @@ def get_3m_datetime(
         if i > 10:
             logger.error(
                 "Something has gone very wrong here, ended up stuck in a "
-                "loop trying to find a valid 3M date"
+                "loop trying to find a valid 3M date\n%s\n%s\n%s",
+                current_datetime,
+                guess_3m_datetime,
+                mapped_guess_3m_datetime,
             )
             break
 
