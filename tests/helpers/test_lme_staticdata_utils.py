@@ -202,16 +202,21 @@ def test_populate_full_curve(
     )
 
     if not populate_options:
-        assert (
-            len(options) == 0,
+        assert len(options) == 0, (
             "Options list length not zero even though they "
-            "were not meant to populate",
+            "were not meant to populate"
         )
     assert len(futures) > len(options), "Options should only exist on monthly prompts"
 
     for option in options:
-        assert (
-            option.expiry + relativedelta.relativedelta(days=14)
-            in lme_futures_curve.monthlies,
-            "Option expiry + 14 days was not found in monthly set",
+        logging.warning("Option symbol: %s, expiry: %s", option.symbol, option.expiry)
+        option_future_expiry = option.expiry + relativedelta.relativedelta(
+            days=14, hour=12, minute=30
         )
+        logging.warning("Underlying predicted expiration: %s", option_future_expiry)
+        assert (
+            option_future_expiry in lme_futures_curve.monthlies
+        ), "Option expiry + 14 days was not found in monthly set"
+        assert (
+            option.underlying_future.expiry in lme_futures_curve.monthlies
+        ), "Option `underlying_future.expiry` not found in monthly set"
