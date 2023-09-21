@@ -17,7 +17,7 @@
         }
       },
       "strike_intervals": [
-        [3500, 25],
+        [4000, 25],
         [10000, 50],
         [14000, -1]
       ],
@@ -44,14 +44,11 @@
       "vol_surface": {
         "model_type": "delta_spline_wing",
         "params": {
-          "model_type": "delta_spline_wing",
-          "params": {
-            "50 Delta": 0.24,
-            "+25 DIFF": 0.01,
-            "-25 DIFF": 0.01,
-            "+10 DIFF": 0.02,
-            "-10 DIFF": 0.02
-          }
+          "50 Delta": 0.24,
+          "+25 DIFF": 0.01,
+          "-25 DIFF": 0.01,
+          "+10 DIFF": 0.02,
+          "-10 DIFF": 0.02
         }
       },
       "strike_intervals": [
@@ -64,19 +61,16 @@
       "vol_surface": {
         "model_type": "delta_spline_wing",
         "params": {
-          "model_type": "delta_spline_wing",
-          "params": {
-            "50 Delta": 0.18,
-            "+25 DIFF": 0.005,
-            "-25 DIFF": 0.005,
-            "+10 DIFF": 0.01,
-            "-10 DIFF": 0.01
-          }
+          "50 Delta": 0.18,
+          "+25 DIFF": 0.005,
+          "-25 DIFF": 0.005,
+          "+10 DIFF": 0.01,
+          "-10 DIFF": 0.01
         }
       },
       "strike_intervals": [
         [1000, 25],
-        [3100, -1]
+        [3500, -1]
       ],
       "multiplier": 25
     },
@@ -84,20 +78,17 @@
       "vol_surface": {
         "model_type": "delta_spline_wing",
         "params": {
-          "model_type": "delta_spline_wing",
-          "params": {
-            "50 Delta": 0.34,
-            "+25 DIFF": 0.015,
-            "-25 DIFF": 0.015,
-            "+10 DIFF": 0.03,
-            "-10 DIFF": 0.03
-          }
+          "50 Delta": 0.34,
+          "+25 DIFF": 0.015,
+          "-25 DIFF": 0.015,
+          "+10 DIFF": 0.03,
+          "-10 DIFF": 0.03
         }
       },
       "strike_intervals": [
         [15000, 50],
         [20000, 100],
-        [27000, -1]
+        [28000, -1]
       ],
       "multiplier": 6
     }
