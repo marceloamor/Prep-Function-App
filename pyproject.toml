@@ -17,6 +17,7 @@ upedata = { path = "dependencies/upedata-0.4.0-py3-none-any.whl" }
 requests = "^2.31.0"
 pytest-cov = "^4.1.0"
 ujson = "^5.8.0"
+paramiko = "^3.3.1"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.7.0"
