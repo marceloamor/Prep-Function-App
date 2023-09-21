@@ -10,9 +10,8 @@ import sqlalchemy
 import redis
 import ujson
 
-from datetime import datetime, date
+from datetime import datetime
 from zoneinfo import ZoneInfo
-from typing import List
 import logging
 import os
 

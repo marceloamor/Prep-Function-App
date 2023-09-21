@@ -13,10 +13,9 @@ from upedata.template_language import parser
 from upedata.dynamic_data import VolSurface
 import upedata.enums as upe_enums
 
-import sqlalchemy.orm
-import redis
-
 from dateutil.relativedelta import relativedelta
+import sqlalchemy.orm
+
 from typing import List, Dict, Tuple, Optional
 from datetime import datetime, date, time
 from dataclasses import dataclass, field
