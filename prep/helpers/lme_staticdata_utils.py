@@ -1,4 +1,5 @@
 from prep.helpers import lme_date_calc_funcs
+from prep.exceptions import ProductNotFound
 
 from upedata.static_data import (
     FuturePriceFeedAssociation,
@@ -8,17 +9,19 @@ from upedata.static_data import (
     Future,
     Option,
 )
-
 from upedata.template_language import parser
 from upedata.dynamic_data import VolSurface
-from prep.exceptions import ProductNotFound
 import upedata.enums as upe_enums
+
+import sqlalchemy.orm
+import redis
 
 from dateutil.relativedelta import relativedelta
 from typing import List, Dict, Tuple, Optional
 from datetime import datetime, date, time
 from dataclasses import dataclass, field
 from zoneinfo import ZoneInfo
+import logging
 import json
 
 
@@ -30,6 +33,8 @@ LME_FUTURE_3M_FEED_ASSOC = {
     "lzh": "X.US.LZHZ",
     "lnd": "X.US.LNIZ",
 }
+
+logger = logging.getLogger("prep.helpers.lme_staticdata_utils")
 
 
 @dataclass
@@ -49,6 +54,7 @@ class LMEFuturesCurve:
         not include TOM, CASH, or 3M, but may overlap with monthlies
         or weeklies.
         """
+        logger.debug("Populating `LMEFuturesCurve` broken datetimes")
         cash_date = self.cash.date()
         three_month_date = self.three_month.date()
         europe_london_tz = ZoneInfo("Europe/London")
@@ -71,6 +77,7 @@ class LMEFuturesCurve:
         :return: Sorted list of prompt datetimes
         :rtype: List[datetime]
         """
+        logger.debug("Generating prompt list from `LMEFuturesCurve`")
         prompt_set = set(
             [self.cash, self.three_month]
             + self.weeklies
@@ -185,7 +192,6 @@ def gen_lme_options(
 
 
 def populate_primary_curve_datetimes(
-    product_symbol: str,
     non_prompts: List[date],
     product_holidays: List[Holiday],
     forward_months=18,
@@ -196,8 +202,6 @@ def populate_primary_curve_datetimes(
     provide: TOM, CASH, 3M, weeklies, and monthlies with no guarantee
     of uniqueness of prompt between these fields.
 
-        :param product_symbol: The symbol of the LME product to generate derivatives for
-    :type product_symbol: str
     :param non_prompts: List of all LME non-prompt dates
     :type non_prompts: List[date]
     :param product_holidays: List of all product holidays
@@ -238,11 +242,11 @@ def populate_primary_curve_datetimes(
     )
 
 
-def populate_full_curve(
+def generate_and_populate_futures_curve(
     product: Product,
-    non_prompts: List[date],
     product_holidays: List[Holiday],
     populate_options=True,
+    populate_broken_dates=False,
     forward_months=18,
     _current_datetime=datetime.now(tz=ZoneInfo("Europe/London")),
 ) -> Tuple[LMEFuturesCurve, List[Future], List[Option]]:
@@ -251,16 +255,17 @@ def populate_full_curve(
     Will provide all valid 3M and weekly prompt futures (runs to 6 months) and all monthly
     prompts to the limit of `months_forward`.
 
-    :param product_symbol: The static data represtentation of the LME product for which
+    :param product: The static data represtentation of the LME product for which
     to generate derivatives
-    :type product_symbol: Product
-    :param non_prompts: List of all LME non-prompt dates
-    :type non_prompts: List[date]
+    :type product: Product
     :param product_holidays: List of all product holidays
     :type product_holidays: List[Holiday]
     :param populate_options: Whether to generate options associated with generated monthly
     futures, defaults to True
     :type populate_options: bool, optional
+    :param populate_broken_dates: Whether to populate and generate broken dated futures,
+    defaults to False
+    :type populate_broken_dates: bool, optional
     :param forward_months: Number of months of monthly futures to generate, also corresponds
     to the number of options generated as these are derivative of the monthly futures,
     defaults to 18
@@ -271,14 +276,16 @@ def populate_full_curve(
     :rtype: Tuple[LMEFuturesCurve, List[Future], List[Option]]
     """
 
+    non_prompts = [holiday.holiday_date for holiday in product_holidays]
+
     lme_futures_curve = populate_primary_curve_datetimes(
-        product.symbol,
         non_prompts,
         product_holidays,
         forward_months=forward_months,
         _current_datetime=_current_datetime,
     )
-    lme_futures_curve.populate_broken_datetimes()
+    if populate_broken_dates:
+        lme_futures_curve.populate_broken_datetimes()
 
     future_expiries = lme_futures_curve.gen_prompt_list()
     futures = gen_lme_futures(future_expiries, product)
@@ -288,3 +295,21 @@ def populate_full_curve(
         options = []
 
     return lme_futures_curve, futures, options
+
+
+def update_lme_product_static_data(
+    lme_product: Product,
+    sqla_session: sqlalchemy.orm.Session,
+    first_run=False,
+) -> LMEFuturesCurve:
+    (
+        lme_futures_curve,
+        futures,
+        options,
+    ) = generate_and_populate_futures_curve(
+        lme_product, lme_product.holidays, populate_broken_dates=first_run
+    )
+    sqla_session.add_all(futures)
+    sqla_session.add_all(options)
+
+    return lme_futures_curve

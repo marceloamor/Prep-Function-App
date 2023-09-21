@@ -1,12 +1,12 @@
-from upedata.static_data import product, holiday
 from prep.helpers import lme_staticdata_utils
 from prep.helpers import lme_date_calc_funcs
 from exceptions import ProductNotFound
 
+from upedata.static_data import Exchange, Product
+
 from dateutil import relativedelta
 import sqlalchemy.orm
 import sqlalchemy
-import requests
 import redis
 import ujson
 
@@ -37,7 +37,7 @@ LME_TOM_DATE_KEYS = ujson.loads(
 
 
 def update_lme_relative_forward_dates(
-    redis_conn: redis.Redis, engine: sqlalchemy.Engine
+    redis_conn: redis.Redis, engine: sqlalchemy.Engine, first_run=False
 ):
     now_london_datetime = datetime.now(
         tz=ZoneInfo("Europe/London")
@@ -46,53 +46,44 @@ def update_lme_relative_forward_dates(
         logging.info("No updating 3M date on weekends")
         return
 
-    holiday_dates: List[date] = []
-
     with sqlalchemy.orm.Session(engine) as session:
-        lme_copper_product = session.get(product.Product, "xlme-lcu-usd")
-        if lme_copper_product is None:
-            raise ProductNotFound("Unable to find `xlme-lcu-usd` in database")
-
-        product_holidays = lme_copper_product.holidays
-        holiday_dates = [holiday_obj.holiday_date for holiday_obj in product_holidays]
-
-        lme_prompt_map = lme_date_calc_funcs.get_lme_prompt_map(holiday_dates)
-        lme_3m_date = lme_date_calc_funcs.get_3m_datetime(
-            now_london_datetime, lme_prompt_map
-        )
-        lme_cash_date = lme_date_calc_funcs.get_cash_datetime(
-            now_london_datetime, product_holidays
-        )
-        lme_tom_date = lme_date_calc_funcs.get_tom_datetime(
-            now_london_datetime, product_holidays
-        )
-        lme_weekly_datetimes = lme_date_calc_funcs.get_all_valid_weekly_prompts(
-            now_london_datetime, lme_prompt_map
-        )
-        lme_monthly_datetimes = lme_date_calc_funcs.get_valid_monthly_prompts(
-            now_london_datetime, forward_months=18
-        )
-        if lme_tom_date is None:
-            future_expiries = set(
-                [lme_cash_date, lme_3m_date]
-                + lme_weekly_datetimes
-                + lme_monthly_datetimes
+        lme_exchange = session.get(Exchange, "xlme")
+        # this is based on the assumption that all LME products share the
+        cached_futures_curve_data = None
+        for lme_product in lme_exchange.products:
+            lme_futures_curve_data = (
+                lme_staticdata_utils.update_lme_product_static_data(
+                    lme_product, redis_conn, engine, first_run=first_run
+                )
             )
-        else:
-            future_expiries = set(
-                [lme_tom_date, lme_cash_date, lme_3m_date]
-                + lme_weekly_datetimes
-                + lme_monthly_datetimes
+            if (
+                lme_product.short_name.lower() in ["lcu", "lad", "lnd", "lzh", "pbd"]
+                and cached_futures_curve_data is None
+            ):
+                cached_futures_curve_data = lme_futures_curve_data
+
+        if cached_futures_curve_data is None:
+            raise ProductNotFound(
+                'Unable to find any of `["lcu", "lad", "lnd", "lzh", "pbd"]` '
+                "in xlme product short names"
             )
+
+        lme_3m_datetime = cached_futures_curve_data.three_month
+        lme_cash_datetime = cached_futures_curve_data.cash
+        lme_tom_datetime = cached_futures_curve_data.tom
 
     redis_pipeline = redis_conn.pipeline()
     for key in LME_3M_DATE_KEYS:
-        redis_pipeline.set(key + redis_dev_key_append, lme_3m_date.strftime(r"%Y%m%d"))
+        redis_pipeline.set(
+            key + redis_dev_key_append, lme_3m_datetime.strftime(r"%Y%m%d")
+        )
     for key in LME_CASH_DATE_KEYS:
         redis_pipeline.set(
-            key + redis_dev_key_append, lme_cash_date.strftime(r"%Y%m%d")
+            key + redis_dev_key_append, lme_cash_datetime.strftime(r"%Y%m%d")
         )
     for key in LME_TOM_DATE_KEYS:
-        redis_pipeline.set(key + redis_dev_key_append, lme_tom_date.strftime(r"%Y%m%d"))
+        redis_pipeline.set(
+            key + redis_dev_key_append, lme_tom_datetime.strftime(r"%Y%m%d")
+        )
 
     redis_pipeline.execute()
