@@ -18,7 +18,7 @@ import sqlalchemy.orm
 import pandas as pd
 import numpy as np
 
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple, Optional, Set
 from datetime import datetime, date, time
 from dataclasses import dataclass, field
 from zoneinfo import ZoneInfo
@@ -318,7 +318,7 @@ def update_lme_product_static_data(
 
 def pull_lme_interest_rate_curve(
     currencies_to_pull_iso_internal_sym: Dict[str, str], num_data_dates_to_pull=1
-) -> List[InterestRate]:
+) -> Tuple[datetime, Set[str], List[InterestRate]]:
     # pandas is cancer and needs to be scorched from this Earth, it's a terrible library
     # with no place in modern software engineering, they can't even do bloody warnings properly
     pd.options.mode.chained_assignment = None
@@ -329,13 +329,19 @@ def pull_lme_interest_rate_curve(
     # yes of course this isn't the most efficient O(whatever the fuck) implementation
     # but this code in production will be running twice a day at most so I don't really care
     valid_currencies_iso = list(currencies_to_pull_iso_internal_sym.keys())
-    for _, rate_dataframe in zip(interest_rate_datetimes, interest_rate_dfs):
+    most_recent_updated_currencies = set()
+    for rate_datetime, rate_dataframe in zip(
+        interest_rate_datetimes, interest_rate_dfs
+    ):
         rate_dataframe = rate_dataframe[
             rate_dataframe["currency"].str.upper().isin(valid_currencies_iso)
         ]
         rate_dataframe.loc[:, "continuous_rate"] = np.log(
             1.0 + rate_dataframe.interest_rate
         )
+        if rate_datetime == interest_rate_datetimes[0]:
+            for currency_iso in rate_dataframe.currency.unique():
+                most_recent_updated_currencies.add(currency_iso)
         for row in rate_dataframe.itertuples(index=False):
             bulk_interest_rate_data.append(
                 InterestRate(
@@ -350,4 +356,21 @@ def pull_lme_interest_rate_curve(
             )
     pd.options.mode.chained_assignment = "warn"
 
-    return bulk_interest_rate_data
+    return (
+        interest_rate_datetimes[0],
+        most_recent_updated_currencies,
+        bulk_interest_rate_data,
+    )
+
+
+def update_lme_interest_rate_static_data(
+    sqla_session: sqlalchemy.orm.Session, first_run=False
+) -> Tuple[datetime, Set[str]]:
+    LME_CURRENCY_DATA = {"USD": "usd", "EUR": "eur", "GBP": "gbp", "JPY": "jpy"}
+    num_dates_to_pull = -1 if first_run else 1
+    df_dt, updated_currencies, interest_rates = pull_lme_interest_rate_curve(
+        LME_CURRENCY_DATA, num_data_dates_to_pull=num_dates_to_pull
+    )
+    sqla_session.add_all(interest_rates)
+
+    return df_dt, updated_currencies

@@ -270,9 +270,16 @@ def test_pull_lme_interest_rate_curve_ideal_data(mocker: MockerFixture):
     )
 
     currencies = {"USD": "usd", "EUR": "eur", "GBP": "gbp", "JPY": "jpy"}
-    interest_rates = lme_staticdata_utils.pull_lme_interest_rate_curve(
+    (
+        latest_dt,
+        currencies_updated,
+        interest_rates,
+    ) = lme_staticdata_utils.pull_lme_interest_rate_curve(
         currencies, num_data_dates_to_pull=5
     )
 
     for interest_rate_obj in interest_rates:
         assert interest_rate_obj.source == "LME", "Expected LME as interest rate source"
+        assert interest_rate_obj.currency_symbol in list(
+            currencies.values()
+        ), "Unexpected currency_symbol"
