@@ -48,6 +48,11 @@ def get_lme_overnight_data(
                 key=lambda file_tuple: (_now_dt - file_tuple[0]).total_seconds(),
                 reverse=True,
             )
+            fetch_most_recent_num = (
+                fetch_most_recent_num
+                if fetch_most_recent_num < len(sorted_sftp_files)
+                else len(sorted_sftp_files)
+            )
             for file_dt, filename in sorted_sftp_files[0:fetch_most_recent_num]:
                 with rjo_sftp_client.open(filename) as sftp_file:
                     file_dfs.append(pandas.read_csv(sftp_file, sep=","))
