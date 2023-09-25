@@ -1,8 +1,10 @@
-from prep.helpers import lme_staticdata_utils, date_name_utilities
+from prep.helpers import lme_staticdata_utils, date_name_utilities, rjo_sftp_utils
 from upedata.static_data import Product, Future, Option
 from upedata.dynamic_data import VolSurface
 from upedata import enums as upe_enums
 
+from pytest_mock import mocker, MockerFixture
+import pandas as pd
 import pytest
 
 from datetime import datetime, date
@@ -10,6 +12,41 @@ from dateutil import relativedelta
 from typing import List, Dict
 from zoneinfo import ZoneInfo
 import logging
+import os
+
+
+def stub_get_lme_overnight_data(base_file_name: str, fetch_most_recent_num=1):
+    lme_inr_dfs = []
+    lme_file_dts = []
+    lme_inr_data_for_sorting = []
+
+    for curr_path, dirs, files in os.walk("tests/lme_overnight_samples/"):
+        for int_file_name in files:
+            try:
+                file_dt = datetime.strptime(int_file_name, "%Y%m%d_%H%M%S_INR.csv")
+                with open(f"{curr_path}/{int_file_name}") as fp:
+                    inr_df = pd.read_csv(fp, sep=",")
+                    inr_df.columns = (
+                        inr_df.columns.str.lower().str.strip().str.replace(" ", "_")
+                    )
+                    lme_inr_data_for_sorting.append((file_dt, inr_df))
+            except ValueError:
+                pass
+
+    if fetch_most_recent_num > len(
+        lme_inr_data_for_sorting
+    ) or fetch_most_recent_num in (-1, 0):
+        fetch_most_recent_num = len(lme_inr_data_for_sorting)
+
+    lme_inr_data_sorted = sorted(
+        lme_inr_data_for_sorting, key=lambda file_tuple: file_tuple[0], reverse=True
+    )[0:fetch_most_recent_num]
+
+    for file_dt, file_df in lme_inr_data_sorted:
+        lme_file_dts.append(file_dt)
+        lme_inr_dfs.append(file_df)
+
+    return lme_file_dts, lme_inr_dfs
 
 
 @pytest.mark.parametrize(
@@ -224,3 +261,25 @@ def test_populate_full_curve(
         assert (
             option.underlying_future.expiry in lme_futures_curve.monthlies
         ), "Option `underlying_future.expiry` not found in monthly set"
+
+
+def test_pull_lme_interest_rate_curve_ideal_data(mocker: MockerFixture):
+    mocker.patch(
+        "prep.helpers.rjo_sftp_utils.get_lme_overnight_data",
+        new=stub_get_lme_overnight_data,
+    )
+
+    currencies = {"USD": "usd", "EUR": "eur", "GBP": "gbp", "JPY": "jpy"}
+    (
+        latest_dt,
+        currencies_updated,
+        interest_rates,
+    ) = lme_staticdata_utils.pull_lme_interest_rate_curve(
+        currencies, num_data_dates_to_pull=5
+    )
+
+    for interest_rate_obj in interest_rates:
+        assert interest_rate_obj.source == "LME", "Expected LME as interest rate source"
+        assert interest_rate_obj.currency_symbol in list(
+            currencies.values()
+        ), "Unexpected currency_symbol"

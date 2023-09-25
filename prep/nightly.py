@@ -33,6 +33,17 @@ LME_CASH_DATE_KEYS = ujson.loads(
 LME_TOM_DATE_KEYS = ujson.loads(
     os.getenv("LME_TOM_DATE_LOCATIONS_REDIS", '["lme:tom_date"]')
 )
+PREP_USD_RECENCY_KEY = os.getenv("PREP_USD_RECENCY_KEY", "prep:health:rates:usd")
+PREP_GBP_RECENCY_KEY = os.getenv("PREP_GBP_RECENCY_KEY", "prep:health:rates:gbp")
+PREP_EUR_RECENCY_KEY = os.getenv("PREP_EUR_RECENCY_KEY", "prep:health:rates:eur")
+PREP_JPY_RECENCY_KEY = os.getenv("PREP_JPY_RECENCY_KEY", "prep:health:rates:jpy")
+
+UPDATED_CURRENCY_TO_KEY = {
+    "USD": PREP_USD_RECENCY_KEY,
+    "GBP": PREP_GBP_RECENCY_KEY,
+    "EUR": PREP_EUR_RECENCY_KEY,
+    "JPY": PREP_JPY_RECENCY_KEY,
+}
 
 
 def update_lme_relative_forward_dates(
@@ -71,6 +82,8 @@ def update_lme_relative_forward_dates(
         lme_cash_datetime = cached_futures_curve_data.cash
         lme_tom_datetime = cached_futures_curve_data.tom
 
+        session.commit()
+
     redis_pipeline = redis_conn.pipeline()
     for key in LME_3M_DATE_KEYS:
         redis_pipeline.set(
@@ -85,4 +98,25 @@ def update_lme_relative_forward_dates(
             key + redis_dev_key_append, lme_tom_datetime.strftime(r"%Y%m%d")
         )
 
+    redis_pipeline.execute()
+
+
+def update_currency_interest_curves_from_lme(
+    redis_conn: redis.Redis, engine: sqlalchemy.Engine, first_run=False
+):
+    with sqlalchemy.orm.Session(engine) as session:
+        (
+            most_recent_rate_datetime,
+            updated_currencies,
+        ) = lme_staticdata_utils.update_lme_interest_rate_static_data(
+            session, first_run=first_run
+        )
+        session.commit()
+
+    redis_pipeline = redis_conn.pipeline()
+    for updated_currency_iso in updated_currencies:
+        redis_pipeline.set(
+            UPDATED_CURRENCY_TO_KEY[updated_currency_iso.upper()],
+            most_recent_rate_datetime.strftime(r"%Y%m%d"),
+        )
     redis_pipeline.execute()
