@@ -27,7 +27,6 @@ def get_rjo_ssh_client() -> paramiko.client.SSHClient:
 def get_lme_overnight_data(
     base_file_name: str,
     fetch_most_recent_num=1,
-    _now_dt=datetime.now(tz=ZoneInfo("Europe/London")),
 ) -> Tuple[List[datetime], List[pandas.DataFrame]]:
     file_datetimes: List[datetime] = []
     file_dfs: List[pandas.DataFrame] = []
@@ -44,18 +43,27 @@ def get_lme_overnight_data(
                 except ValueError:
                     pass
             sorted_sftp_files = sorted(
-                sftp_files,
-                key=lambda file_tuple: (_now_dt - file_tuple[0]).total_seconds(),
-                reverse=True,
+                sftp_files, key=lambda file_tuple: file_tuple[0], reverse=True
             )
             fetch_most_recent_num = (
                 fetch_most_recent_num
                 if fetch_most_recent_num < len(sorted_sftp_files)
                 else len(sorted_sftp_files)
             )
+            if fetch_most_recent_num > len(
+                sorted_sftp_files
+            ) or fetch_most_recent_num in (-1, 0):
+                fetch_most_recent_num = len(sorted_sftp_files)
+
             for file_dt, filename in sorted_sftp_files[0:fetch_most_recent_num]:
                 with rjo_sftp_client.open(filename) as sftp_file:
-                    file_dfs.append(pandas.read_csv(sftp_file, sep=","))
+                    file_dataframe = pandas.read_csv(sftp_file, sep=",")
+                    file_dataframe.columns = (
+                        file_dataframe.columns.str.lower()
+                        .str.strip()
+                        .str.replace(" ", "_")
+                    )
+                    file_dfs.append(file_dataframe)
                     file_datetimes.append(file_dt)
 
     return file_datetimes, file_dfs
