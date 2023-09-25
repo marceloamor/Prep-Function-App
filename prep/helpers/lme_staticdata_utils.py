@@ -1,4 +1,4 @@
-from prep.helpers import lme_date_calc_funcs
+from prep.helpers import lme_date_calc_funcs, rjo_sftp_utils
 from prep.exceptions import ProductNotFound
 
 from upedata.static_data import (
@@ -9,12 +9,14 @@ from upedata.static_data import (
     Future,
     Option,
 )
+from upedata.dynamic_data import VolSurface, InterestRate
 from upedata.template_language import parser
-from upedata.dynamic_data import VolSurface
 import upedata.enums as upe_enums
 
 from dateutil.relativedelta import relativedelta
 import sqlalchemy.orm
+import pandas as pd
+import numpy as np
 
 from typing import List, Dict, Tuple, Optional
 from datetime import datetime, date, time
@@ -312,3 +314,40 @@ def update_lme_product_static_data(
     sqla_session.add_all(options)
 
     return lme_futures_curve
+
+
+def pull_lme_interest_rate_curve(
+    currencies_to_pull_iso_internal_sym: Dict[str, str], num_data_dates_to_pull=1
+) -> List[InterestRate]:
+    # pandas is cancer and needs to be scorched from this Earth, it's a terrible library
+    # with no place in modern software engineering, they can't even do bloody warnings properly
+    pd.options.mode.chained_assignment = None
+    interest_rate_datetimes, interest_rate_dfs = rjo_sftp_utils.get_lme_overnight_data(
+        "INR", fetch_most_recent_num=num_data_dates_to_pull
+    )
+    bulk_interest_rate_data: List[InterestRate] = []
+    # yes of course this isn't the most efficient O(whatever the fuck) implementation
+    # but this code in production will be running twice a day at most so I don't really care
+    valid_currencies_iso = list(currencies_to_pull_iso_internal_sym.keys())
+    for _, rate_dataframe in zip(interest_rate_datetimes, interest_rate_dfs):
+        rate_dataframe = rate_dataframe[
+            rate_dataframe["currency"].str.upper().isin(valid_currencies_iso)
+        ]
+        rate_dataframe.loc[:, "continuous_rate"] = np.log(
+            1.0 + rate_dataframe.interest_rate
+        )
+        for row in rate_dataframe.itertuples(index=False):
+            bulk_interest_rate_data.append(
+                InterestRate(
+                    published_date=row.report_date,
+                    to_date=row.forward_date,
+                    currency_symbol=currencies_to_pull_iso_internal_sym[
+                        row.currency.upper()
+                    ],
+                    source="LME",
+                    continuous_rate=row.continuous_rate,
+                )
+            )
+    pd.options.mode.chained_assignment = "warn"
+
+    return bulk_interest_rate_data
