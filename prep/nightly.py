@@ -1,11 +1,13 @@
-from prep.helpers import lme_staticdata_utils
-from prep.helpers import lme_date_calc_funcs
+from prep.helpers import lme_staticdata_utils, time_series_interpolation
+from prep import handy_dandy_variables
 from exceptions import ProductNotFound
 
-from upedata.static_data import Exchange, Product
+from upedata.dynamic_data import InterestRate
+from upedata.static_data import Exchange
 
 from dateutil import relativedelta
 import sqlalchemy.orm
+import pandas as pd
 import sqlalchemy
 import redis
 import ujson
@@ -15,14 +17,8 @@ from zoneinfo import ZoneInfo
 import logging
 import os
 
-USE_DEV_KEYS = os.getenv("USE_DEV_KEYS", "1").lower() not in (
-    "t",
-    "true",
-    "y",
-    "yes",
-    "1",
-)
-redis_dev_key_append = ":dev" if USE_DEV_KEYS else ""
+
+redis_dev_key_append = handy_dandy_variables.redis_key_append
 
 LME_3M_DATE_KEYS = ujson.loads(
     os.getenv("LME_3M_DATE_LOCATIONS_REDIS", '["3m", "lme:3m_date"]')
@@ -104,6 +100,11 @@ def update_lme_relative_forward_dates(
 def update_currency_interest_curves_from_lme(
     redis_conn: redis.Redis, engine: sqlalchemy.Engine, first_run=False
 ):
+    rate_curve_data = {
+        currency_iso_sym: {"legacy": {}, "new": {}}
+        for currency_iso_sym in list(UPDATED_CURRENCY_TO_KEY.keys())
+    }
+
     with sqlalchemy.orm.Session(engine) as session:
         (
             most_recent_rate_datetime,
@@ -111,12 +112,48 @@ def update_currency_interest_curves_from_lme(
         ) = lme_staticdata_utils.update_lme_interest_rate_static_data(
             session, first_run=first_run
         )
+        select_most_recent_inr_curve = (
+            sqlalchemy.select(InterestRate.to_date, InterestRate.continuous_rate)
+            .where(InterestRate.source == "LME")
+            .where(InterestRate.published_date == most_recent_rate_datetime.date())
+        )
+        for curr_iso_sym, rate_data in rate_curve_data.items():
+            interest_rates = (
+                session.execute(
+                    select_most_recent_inr_curve.where(
+                        InterestRate.currency_symbol == curr_iso_sym.lower()
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            interest_rate_df = pd.DataFrame.from_records(
+                interest_rates, index="date", columns=["date", "cont_rate"]
+            )
+            interest_rate_df.index = pd.DatetimeIndex(data=interest_rate_df.index)
+            interest_rate_df = time_series_interpolation.interpolate_on_time_series_df(
+                interest_rate_df,
+                "cont_rate",
+                "interp_cont_rate",
+            )
+            for interest_rate_row_data in interest_rate_df.itertuples():
+                rate_data["legacy"][
+                    interest_rate_row_data.Index.strftime(r"%Y%m%d")
+                ] = {"Interest Rate": interest_rate_row_data.cont_rate}
+                rate_data["new"][
+                    interest_rate_row_data.Index.strftime(r"%Y%m%d")
+                ] = interest_rate_row_data.cont_rate
         session.commit()
 
     redis_pipeline = redis_conn.pipeline()
     for updated_currency_iso in updated_currencies:
         redis_pipeline.set(
-            UPDATED_CURRENCY_TO_KEY[updated_currency_iso.upper()],
+            f"{updated_currency_iso.upper()}Rate{redis_dev_key_append}",
+            ujson.dumps(rate_curve_data[updated_currency_iso.upper()]["legacy"]),
+        )
+        redis_pipeline.set(
+            UPDATED_CURRENCY_TO_KEY[updated_currency_iso.upper()]
+            + redis_dev_key_append,
             most_recent_rate_datetime.strftime(r"%Y%m%d"),
         )
     redis_pipeline.execute()
