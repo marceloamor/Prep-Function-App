@@ -9,7 +9,12 @@ from upedata.static_data import (
     Future,
     Option,
 )
-from upedata.dynamic_data import VolSurface, InterestRate
+from upedata.dynamic_data import (
+    FutureClosingPrice,
+    OptionClosingPrice,
+    InterestRate,
+    VolSurface,
+)
 from upedata.template_language import parser
 import upedata.enums as upe_enums
 
@@ -374,3 +379,12 @@ def update_lme_interest_rate_static_data(
     sqla_session.add_all(interest_rates)
 
     return df_dt, updated_currencies
+
+
+def pull_lme_futures_closing_price_data(
+    products_to_update: List[Product], num_data_dates_to_pull=1
+) -> List[FutureClosingPrice]:
+    closing_price_datetimes, closing_price_dfs = rjo_sftp_utils.get_lme_overnight_data(
+        "FCP", fetch_most_recent_num=num_data_dates_to_pull
+    )
+    bulk_closing_prices: List[FutureClosingPrice] = []
