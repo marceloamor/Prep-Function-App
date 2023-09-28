@@ -390,7 +390,7 @@ def update_lme_interest_rate_static_data(
 
 def pull_lme_futures_closing_price_data(
     num_data_dates_to_pull=1,
-) -> Tuple[datetime, List[FutureClosingPrice]]:
+) -> Tuple[datetime, List[FutureClosingPrice], pd.DataFrame]:
     closing_price_datetimes, closing_price_dfs = rjo_sftp_utils.get_lme_overnight_data(
         "FCP", fetch_most_recent_num=num_data_dates_to_pull
     )
@@ -399,7 +399,8 @@ def pull_lme_futures_closing_price_data(
         closing_price_datetimes, closing_price_dfs
     ):
         closing_price_df = closing_price_df[
-            closing_price_df["currency"].str.upper() == "USD"
+            (closing_price_df["currency"].str.upper() == "USD")
+            & (closing_price_df["price_type"].str.upper() == "FC")
         ]
         for row in closing_price_df.itertuples(index=False):
             try:
@@ -423,16 +424,18 @@ def pull_lme_futures_closing_price_data(
                 )
             )
 
-    return closing_price_datetimes[0], bulk_closing_prices
+    return closing_price_datetimes[0], bulk_closing_prices, closing_price_dfs[0]
 
 
 def update_lme_futures_closing_price_data(
     sqla_session: sqlalchemy.orm.Session,
     first_run=False,
-) -> datetime:
+) -> Tuple[datetime, pd.DataFrame]:
     num_dates_to_pull = -1 if first_run else 1
-    most_recent_dt, future_closing_prices = pull_lme_futures_closing_price_data(
-        num_data_dates_to_pull=num_dates_to_pull
-    )
+    (
+        most_recent_dt,
+        future_closing_prices,
+        most_recent_df,
+    ) = pull_lme_futures_closing_price_data(num_data_dates_to_pull=num_dates_to_pull)
     sqla_session.add_all(future_closing_prices)
-    return most_recent_dt
+    return most_recent_dt, most_recent_df
