@@ -31,20 +31,27 @@ import logging
 import json
 
 
-LME_FUTURE_MULTIPLIERS = {"lad": 25, "lcu": 25, "pbd": 25, "lzh": 25, "lnd": 6}
+LME_PRODUCT_NAMES = ["AHD", "CAD", "PBD", "ZSD", "NID"]
+LME_FUTURE_MULTIPLIERS_LIST = [25, 25, 25, 25, 6]
+GEORGIA_LME_PRODUCT_NAMES_BASE = ["lad", "lcu", "pbd", "lzh", "lnd"]
+CQG_3M_FEEDS = ["X.US.LALZ", "X.US.LDKZ", "X.US.LEDZ", "X.US.LZHZ", "X.US.LNIZ"]
+LME_FUTURE_MULTIPLIERS = {
+    georgia_product_name: product_multiplier
+    for georgia_product_name, product_multiplier in zip(
+        GEORGIA_LME_PRODUCT_NAMES_BASE, LME_FUTURE_MULTIPLIERS_LIST
+    )
+}
 LME_FUTURE_3M_FEED_ASSOC = {
-    "lad": "X.US.LALZ",
-    "lcu": "X.US.LDKZ",
-    "pbd": "X.US.LEDZ",
-    "lzh": "X.US.LZHZ",
-    "lnd": "X.US.LNIZ",
+    georgia_product_name: future_3m_feed
+    for georgia_product_name, future_3m_feed in zip(
+        GEORGIA_LME_PRODUCT_NAMES_BASE, CQG_3M_FEEDS
+    )
 }
 LME_PRODUCT_IDENTIFIER_MAP = {
-    "AHD": "LAD",
-    "CAD": "LCU",
-    "NID": "LND",
-    "PBD": "PBD",
-    "ZSD": "LZH",
+    lme_product_name: georgia_product_name
+    for lme_product_name, georgia_product_name in zip(
+        LME_PRODUCT_NAMES, GEORGIA_LME_PRODUCT_NAMES_BASE
+    )
 }
 
 logger = logging.getLogger("prep.helpers.lme_staticdata_utils")
