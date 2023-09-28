@@ -398,6 +398,9 @@ def pull_lme_futures_closing_price_data(
     for closing_price_datetime, closing_price_df in zip(
         closing_price_datetimes, closing_price_dfs
     ):
+        closing_price_df = closing_price_df[
+            closing_price_df["currency"].str.upper() == "USD"
+        ]
         for row in closing_price_df.itertuples(index=False):
             try:
                 future_int_ident = LME_PRODUCT_IDENTIFIER_MAP[
