@@ -28,6 +28,22 @@ def get_lme_overnight_data(
     base_file_name: str,
     fetch_most_recent_num=1,
 ) -> Tuple[List[datetime], List[pandas.DataFrame]]:
+    """Fetches and sorts a list of datetimes and associated dataframes
+    of LME overnight data files that are found in the RJO SFTP server.
+
+    Return lists are sorted most recent first.
+
+    :param base_file_name: The base name of the file, `INR`, `FCP`, and
+    `CLO` are all examples.
+    :type base_file_name: str
+    :param fetch_most_recent_num: Number of files to fetch, most recent
+    first, defaults to 1
+    :type fetch_most_recent_num: int, optional
+    :return: A tuple containing a list of datetimes and a list of the
+    data contained in each of the files found associated with the given
+    datetime
+    :rtype: Tuple[List[datetime], List[pandas.DataFrame]]
+    """
     file_datetimes: List[datetime] = []
     file_dfs: List[pandas.DataFrame] = []
     with get_rjo_ssh_client() as rjo_ssh:
