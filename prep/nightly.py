@@ -2,7 +2,7 @@ from prep.helpers import lme_staticdata_utils, time_series_interpolation
 from prep import handy_dandy_variables
 from exceptions import ProductNotFound
 
-from upedata.dynamic_data import InterestRate
+from upedata.dynamic_data import InterestRate, FutureClosingPrice
 from upedata.static_data import Exchange
 
 from dateutil import relativedelta
@@ -29,6 +29,11 @@ LME_CASH_DATE_KEYS = ujson.loads(
 LME_TOM_DATE_KEYS = ujson.loads(
     os.getenv("LME_TOM_DATE_LOCATIONS_REDIS", '["lme:tom_date"]')
 )
+LEGACY_LME_FCP_RECENCY_KEY = os.getenv("LEGACY_LME_FCP_RECENCY_KEY", "FCP_update")
+LEGACY_LME_INR_RECENCY_KEY = os.getenv("LEGACY_LME_INR_RECENCY_KEY", "INR_update")
+LME_FCP_RECENCY_KEY = os.getenv("LME_FCP_RECENCY_KEY", "prep:health:lme:fcp")
+LME_INR_RECENCY_KEY = os.getenv("LME_INR_RECENCY_KEY", "prep:health:lme:inr")
+
 PREP_USD_RECENCY_KEY = os.getenv("PREP_USD_RECENCY_KEY", "prep:health:rates:usd")
 PREP_GBP_RECENCY_KEY = os.getenv("PREP_GBP_RECENCY_KEY", "prep:health:rates:gbp")
 PREP_EUR_RECENCY_KEY = os.getenv("PREP_EUR_RECENCY_KEY", "prep:health:rates:eur")
@@ -117,6 +122,7 @@ def update_currency_interest_curves_from_lme(
             .where(InterestRate.source == "LME")
             .where(InterestRate.published_date == most_recent_rate_datetime.date())
         )
+        session.commit()
         for curr_iso_sym, rate_data in rate_curve_data.items():
             interest_rates = (
                 session.execute(
@@ -146,6 +152,7 @@ def update_currency_interest_curves_from_lme(
         session.commit()
 
     redis_pipeline = redis_conn.pipeline()
+    most_recent_dt_Ymd = most_recent_rate_datetime.strftime(r"%Y%m%d")
     for updated_currency_iso in updated_currencies:
         redis_pipeline.set(
             f"{updated_currency_iso.upper()}Rate{redis_dev_key_append}",
@@ -154,6 +161,29 @@ def update_currency_interest_curves_from_lme(
         redis_pipeline.set(
             UPDATED_CURRENCY_TO_KEY[updated_currency_iso.upper()]
             + redis_dev_key_append,
-            most_recent_rate_datetime.strftime(r"%Y%m%d"),
+            most_recent_dt_Ymd,
         )
+    redis_pipeline.set(
+        LEGACY_LME_INR_RECENCY_KEY + redis_dev_key_append, most_recent_dt_Ymd
+    )
+    redis_pipeline.set(LME_INR_RECENCY_KEY + redis_dev_key_append, most_recent_dt_Ymd)
     redis_pipeline.execute()
+
+
+def update_future_closing_prices_from_lme(
+    redis_conn: redis.Redis, engine: sqlalchemy.Engine, first_run=False
+):
+    with sqlalchemy.orm.Session(engine) as session:
+        (
+            most_recent_file_dt,
+            most_recent_file_df,
+        ) = lme_staticdata_utils.update_lme_futures_closing_price_data(
+            session, first_run=first_run
+        )
+        session.commit()
+        most_recent_file_df = most_recent_file_df[
+            (most_recent_file_df["currency"] == "USD")
+            & (most_recent_file_df["price_type"] == "FC")
+        ]
+        for underlying in list(lme_staticdata_utils.LME_PRODUCT_IDENTIFIER_MAP.keys()):
+            underlying_no_curr = underlying[:2]  # turns CAD into CA and AHD into AH
