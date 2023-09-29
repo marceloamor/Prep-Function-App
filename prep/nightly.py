@@ -180,6 +180,8 @@ def update_future_closing_prices_from_lme(
         ) = lme_staticdata_utils.update_lme_futures_closing_price_data(
             session, first_run=first_run
         )
+        if most_recent_file_dt == datetime(1970, 1, 1):
+            return
         session.commit()
         most_recent_file_df = most_recent_file_df[
             (most_recent_file_df["currency"] == "USD")

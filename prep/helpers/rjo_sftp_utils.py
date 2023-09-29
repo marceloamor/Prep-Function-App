@@ -81,4 +81,7 @@ def get_lme_overnight_data(
                     file_dfs.append(file_dataframe)
                     file_datetimes.append(file_dt)
 
+    if len(file_datetimes) == 0:
+        logger.warning("Found no files with basename %s in RJO SFTP", base_file_name)
+
     return file_datetimes, file_dfs

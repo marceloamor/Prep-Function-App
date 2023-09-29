@@ -51,12 +51,17 @@ def stub_get_lme_overnight_data(base_file_name: str, fetch_most_recent_num=1):
 
 class MockParamikoSFTPClient:
     def __init__(self) -> None:
-        self.curr_dir = os.path.abspath("tests/rjo_sftp_simulator")
+        self.curr_dir = os.path.abspath("./tests/rjo_sftp_simulator")
+        self.original_dir = os.path.abspath(".")
         os.chdir(self.curr_dir)
 
     def chdir(self, directory: str, _strip_root_slash=True) -> None:
         if _strip_root_slash:
             directory = directory.lstrip(r"\/")
+        if not os.path.exists(directory):
+            raise ValueError(
+                "Path given does not exist: " + self.curr_dir + "/" + directory
+            )
         os.chdir(directory)
         self.curr_dir = os.path.abspath(".")
 
@@ -73,7 +78,7 @@ class MockParamikoSFTPClient:
         return self
 
     def __exit__(self, *args, **kwargs):
-        pass
+        os.chdir(self.original_dir)
 
 
 class MockParamikoClient:
@@ -308,7 +313,10 @@ def test_populate_full_curve(
         ), "Option `underlying_future.expiry` not found in monthly set"
 
 
-def test_pull_lme_interest_rate_curve_ideal_data(mocker: MockerFixture):
+@pytest.mark.parametrize("num_to_pull", [1, -1])
+def test_pull_lme_interest_rate_curve_ideal_data(
+    num_to_pull: int, mocker: MockerFixture
+):
     mocker.patch(
         "prep.helpers.rjo_sftp_utils.get_rjo_ssh_client",
         new=get_mock_paramiko_client,
@@ -320,7 +328,7 @@ def test_pull_lme_interest_rate_curve_ideal_data(mocker: MockerFixture):
         currencies_updated,
         interest_rates,
     ) = lme_staticdata_utils.pull_lme_interest_rate_curve(
-        currencies, num_data_dates_to_pull=5
+        currencies, num_data_dates_to_pull=num_to_pull
     )
 
     for interest_rate_obj in interest_rates:
@@ -328,3 +336,29 @@ def test_pull_lme_interest_rate_curve_ideal_data(mocker: MockerFixture):
         assert interest_rate_obj.currency_symbol in list(
             currencies.values()
         ), "Unexpected currency_symbol"
+
+
+@pytest.mark.parametrize("num_to_pull", [1, -1])
+def test_pull_lme_futures_closing_prices_ideal_data(
+    num_to_pull: int, mocker: MockerFixture
+):
+    mocker.patch(
+        "prep.helpers.rjo_sftp_utils.get_rjo_ssh_client",
+        new=get_mock_paramiko_client,
+    )
+
+    (
+        most_recent_closing_price_dt,
+        most_recent_closing_price_df,
+        closing_prices,
+    ) = lme_staticdata_utils.pull_lme_futures_closing_price_data(
+        num_data_dates_to_pull=num_to_pull
+    )
+
+    assert most_recent_closing_price_dt == datetime(
+        2023, 9, 26
+    ), "Most recent file had unexpected datetime"
+    for closing_price in closing_prices:
+        assert (
+            closing_price.close_date <= most_recent_closing_price_dt.date()
+        ), "Close date was more recent than most recent file"

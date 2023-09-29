@@ -344,6 +344,8 @@ def pull_lme_interest_rate_curve(
     interest_rate_datetimes, interest_rate_dfs = rjo_sftp_utils.get_lme_overnight_data(
         "INR", fetch_most_recent_num=num_data_dates_to_pull
     )
+    if len(interest_rate_datetimes) == 0:
+        return datetime(1970, 1, 1), set(), []
     bulk_interest_rate_data: List[InterestRate] = []
     # yes of course this isn't the most efficient O(whatever the fuck) implementation
     # but this code in production will be running twice a day at most so I don't really care
@@ -397,10 +399,12 @@ def update_lme_interest_rate_static_data(
 
 def pull_lme_futures_closing_price_data(
     num_data_dates_to_pull=1,
-) -> Tuple[datetime, List[FutureClosingPrice], pd.DataFrame]:
+) -> Tuple[datetime, pd.DataFrame, List[FutureClosingPrice]]:
     closing_price_datetimes, closing_price_dfs = rjo_sftp_utils.get_lme_overnight_data(
         "FCP", fetch_most_recent_num=num_data_dates_to_pull
     )
+    if len(closing_price_datetimes) == 0:
+        return datetime(1970, 1, 1), pd.DataFrame(), []
     bulk_closing_prices: List[FutureClosingPrice] = []
     for closing_price_datetime, closing_price_df in zip(
         closing_price_datetimes, closing_price_dfs
@@ -414,15 +418,15 @@ def pull_lme_futures_closing_price_data(
                 future_int_ident = LME_PRODUCT_IDENTIFIER_MAP[
                     f"{row.underlying}D"
                 ].lower()
-            except ValueError:
+            except KeyError:
                 logger.debug(
                     "Passed on row with underlying %s as it is currently not listed for ingest",
                     row.underlying,
                 )
                 continue
-            future_exp_str = datetime.strptime(row.forward_date, r"%Y%m%d").strftime(
-                r"%y-%m-%d"
-            )
+            future_exp_str = datetime.strptime(
+                str(row.forward_date), r"%Y%m%d"
+            ).strftime(r"%y-%m-%d")
             bulk_closing_prices.append(
                 FutureClosingPrice(
                     close_date=closing_price_datetime.date(),
@@ -431,7 +435,7 @@ def pull_lme_futures_closing_price_data(
                 )
             )
 
-    return closing_price_datetimes[0], bulk_closing_prices, closing_price_dfs[0]
+    return closing_price_datetimes[0], closing_price_dfs[0], bulk_closing_prices
 
 
 def update_lme_futures_closing_price_data(
@@ -441,8 +445,8 @@ def update_lme_futures_closing_price_data(
     num_dates_to_pull = -1 if first_run else 1
     (
         most_recent_dt,
-        future_closing_prices,
         most_recent_df,
+        future_closing_prices,
     ) = pull_lme_futures_closing_price_data(num_data_dates_to_pull=num_dates_to_pull)
     sqla_session.add_all(future_closing_prices)
     return most_recent_dt, most_recent_df
