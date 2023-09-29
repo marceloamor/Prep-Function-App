@@ -9,7 +9,7 @@ import pytest
 
 from datetime import datetime, date
 from dateutil import relativedelta
-from typing import List, Dict
+from typing import List, Dict, IO
 from zoneinfo import ZoneInfo
 import logging
 import os
@@ -47,6 +47,51 @@ def stub_get_lme_overnight_data(base_file_name: str, fetch_most_recent_num=1):
         lme_inr_dfs.append(file_df)
 
     return lme_file_dts, lme_inr_dfs
+
+
+class MockParamikoSFTPClient:
+    def __init__(self) -> None:
+        self.curr_dir = os.path.abspath("tests/rjo_sftp_simulator")
+        os.chdir(self.curr_dir)
+
+    def chdir(self, directory: str, _strip_root_slash=True) -> None:
+        if _strip_root_slash:
+            directory = directory.lstrip(r"\/")
+        os.chdir(directory)
+        self.curr_dir = os.path.abspath(".")
+
+    def listdir(self, path=".") -> List[str]:
+        os_listdir_res = os.listdir(path)
+        logging.info("Current mock sftp directory list: %s", os_listdir_res)
+        return os_listdir_res
+
+    def open(self, filename: str, mode="r", bufsize=-1) -> IO:
+        logging.warning("Trying to open %s", self.curr_dir + "/" + filename)
+        return open(self.curr_dir + "/" + filename, mode=mode, buffering=bufsize)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args, **kwargs):
+        pass
+
+
+class MockParamikoClient:
+    def __init__(self) -> None:
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args, **kwargs):
+        pass
+
+    def open_sftp(self) -> MockParamikoSFTPClient:
+        return MockParamikoSFTPClient()
+
+
+def get_mock_paramiko_client() -> MockParamikoClient:
+    return MockParamikoClient()
 
 
 @pytest.mark.parametrize(
@@ -265,8 +310,8 @@ def test_populate_full_curve(
 
 def test_pull_lme_interest_rate_curve_ideal_data(mocker: MockerFixture):
     mocker.patch(
-        "prep.helpers.rjo_sftp_utils.get_lme_overnight_data",
-        new=stub_get_lme_overnight_data,
+        "prep.helpers.rjo_sftp_utils.get_rjo_ssh_client",
+        new=get_mock_paramiko_client,
     )
 
     currencies = {"USD": "usd", "EUR": "eur", "GBP": "gbp", "JPY": "jpy"}

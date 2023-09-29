@@ -50,11 +50,10 @@ def get_lme_overnight_data(
         with rjo_ssh.open_sftp() as rjo_sftp_client:
             rjo_sftp_client.chdir("/LMEPrices")
             sftp_files: List[Tuple[datetime, str]] = []
+            filename_pattern = f"%Y%m%d_{base_file_name}_r.csv"
             for filename in rjo_sftp_client.listdir():
                 try:
-                    file_datetime = datetime.strptime(
-                        f"%Y%m%d_{base_file_name}_r.csv", filename
-                    )
+                    file_datetime = datetime.strptime(filename, filename_pattern)
                     sftp_files.append((file_datetime, filename))
                 except ValueError:
                     pass
