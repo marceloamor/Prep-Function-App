@@ -32,6 +32,7 @@ import json
 
 
 LME_PRODUCT_NAMES = ["AHD", "CAD", "PBD", "ZSD", "NID"]
+LME_METAL_NAMES = ["aluminium", "copper", "lead", "zinc", "nickel"]
 LME_FUTURE_MULTIPLIERS_LIST = [25, 25, 25, 25, 6]
 GEORGIA_LME_PRODUCT_NAMES_BASE = ["lad", "lcu", "pbd", "lzh", "lnd"]
 CQG_3M_FEEDS = ["X.US.LALZ", "X.US.LDKZ", "X.US.LEDZ", "X.US.LZHZ", "X.US.LNIZ"]
@@ -52,6 +53,10 @@ LME_PRODUCT_IDENTIFIER_MAP = {
     for lme_product_name, georgia_product_name in zip(
         LME_PRODUCT_NAMES, GEORGIA_LME_PRODUCT_NAMES_BASE
     )
+}
+LME_PRODUCT_NAME_MAP = {
+    lme_product_name[0:2]: lme_metal_name
+    for lme_product_name, lme_metal_name in zip(LME_PRODUCT_NAMES, LME_METAL_NAMES)
 }
 
 logger = logging.getLogger("prep.helpers.lme_staticdata_utils")
