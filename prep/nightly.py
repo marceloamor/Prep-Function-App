@@ -45,6 +45,13 @@ UPDATED_CURRENCY_TO_KEY = {
     "EUR": PREP_EUR_RECENCY_KEY,
     "JPY": PREP_JPY_RECENCY_KEY,
 }
+LME_FCP_PRODUCT_TO_REDIS_KEY = {
+    lme_product_name[0:2]: f"lme:xlme-{georgia_product_name}-usd:fcp"
+    for lme_product_name, georgia_product_name in zip(
+        lme_staticdata_utils.LME_PRODUCT_NAMES,
+        lme_staticdata_utils.GEORGIA_LME_PRODUCT_NAMES_BASE,
+    )
+}
 
 
 def update_lme_relative_forward_dates(
@@ -187,5 +194,34 @@ def update_future_closing_prices_from_lme(
             (most_recent_file_df["currency"] == "USD")
             & (most_recent_file_df["price_type"] == "FC")
         ]
-        for underlying in list(lme_staticdata_utils.LME_PRODUCT_IDENTIFIER_MAP.keys()):
-            underlying_no_curr = underlying[:2]  # turns CAD into CA and AHD into AH
+        most_recent_file_df.loc[:, "prompt_date"] = most_recent_file_df.loc[
+            :, "forward_date"
+        ].apply(lambda forward_date: datetime.strptime(str(forward_date), r"%Y%m%d"))
+
+        redis_pipeline = redis_conn.pipeline()
+        for underlying_no_curr, redis_key in LME_FCP_PRODUCT_TO_REDIS_KEY.items():
+            product_specific_df = most_recent_file_df[
+                most_recent_file_df["underlying"] == underlying_no_curr
+            ]
+            product_specific_df.index = pd.DatetimeIndex(
+                data=product_specific_df.loc[:, "prompt_date"]
+            )
+
+            interpolated_product_curve_df = (
+                time_series_interpolation.interpolate_on_time_series_df(
+                    product_specific_df, "price", "interpolated_price"
+                )
+            )
+            underlying_close_data = {}  # date: interpolated_price
+            for row in interpolated_product_curve_df.itertuples():
+                underlying_close_data[
+                    row.index.strftime(r"%Y%m%d")
+                ] = row.interpolated_price
+            redis_pipeline.set(
+                redis_key + redis_dev_key_append, ujson.dumps(underlying_close_data)
+            )
+        redis_pipeline.set(
+            LME_FCP_RECENCY_KEY + redis_dev_key_append,
+            most_recent_file_dt.strftime(r"%Y%m%d"),
+        )
+        redis_pipeline.execute()
