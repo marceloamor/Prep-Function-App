@@ -31,13 +31,32 @@ import logging
 import json
 
 
-LME_FUTURE_MULTIPLIERS = {"lad": 25, "lcu": 25, "pbd": 25, "lzh": 25, "lnd": 6}
+LME_PRODUCT_NAMES = ["AHD", "CAD", "PBD", "ZSD", "NID"]
+LME_METAL_NAMES = ["aluminium", "copper", "lead", "zinc", "nickel"]
+LME_FUTURE_MULTIPLIERS_LIST = [25, 25, 25, 25, 6]
+GEORGIA_LME_PRODUCT_NAMES_BASE = ["lad", "lcu", "pbd", "lzh", "lnd"]
+CQG_3M_FEEDS = ["X.US.LALZ", "X.US.LDKZ", "X.US.LEDZ", "X.US.LZHZ", "X.US.LNIZ"]
+LME_FUTURE_MULTIPLIERS = {
+    georgia_product_name: product_multiplier
+    for georgia_product_name, product_multiplier in zip(
+        GEORGIA_LME_PRODUCT_NAMES_BASE, LME_FUTURE_MULTIPLIERS_LIST
+    )
+}
 LME_FUTURE_3M_FEED_ASSOC = {
-    "lad": "X.US.LALZ",
-    "lcu": "X.US.LDKZ",
-    "pbd": "X.US.LEDZ",
-    "lzh": "X.US.LZHZ",
-    "lnd": "X.US.LNIZ",
+    georgia_product_name: future_3m_feed
+    for georgia_product_name, future_3m_feed in zip(
+        GEORGIA_LME_PRODUCT_NAMES_BASE, CQG_3M_FEEDS
+    )
+}
+LME_PRODUCT_IDENTIFIER_MAP = {
+    lme_product_name: georgia_product_name
+    for lme_product_name, georgia_product_name in zip(
+        LME_PRODUCT_NAMES, GEORGIA_LME_PRODUCT_NAMES_BASE
+    )
+}
+LME_PRODUCT_NAME_MAP = {
+    lme_product_name[0:2]: lme_metal_name
+    for lme_product_name, lme_metal_name in zip(LME_PRODUCT_NAMES, LME_METAL_NAMES)
 }
 
 logger = logging.getLogger("prep.helpers.lme_staticdata_utils")
@@ -330,6 +349,8 @@ def pull_lme_interest_rate_curve(
     interest_rate_datetimes, interest_rate_dfs = rjo_sftp_utils.get_lme_overnight_data(
         "INR", fetch_most_recent_num=num_data_dates_to_pull
     )
+    if len(interest_rate_datetimes) == 0:
+        return datetime(1970, 1, 1), set(), []
     bulk_interest_rate_data: List[InterestRate] = []
     # yes of course this isn't the most efficient O(whatever the fuck) implementation
     # but this code in production will be running twice a day at most so I don't really care
@@ -382,9 +403,55 @@ def update_lme_interest_rate_static_data(
 
 
 def pull_lme_futures_closing_price_data(
-    products_to_update: List[Product], num_data_dates_to_pull=1
-) -> List[FutureClosingPrice]:
+    num_data_dates_to_pull=1,
+) -> Tuple[datetime, pd.DataFrame, List[FutureClosingPrice]]:
     closing_price_datetimes, closing_price_dfs = rjo_sftp_utils.get_lme_overnight_data(
         "FCP", fetch_most_recent_num=num_data_dates_to_pull
     )
+    if len(closing_price_datetimes) == 0:
+        return datetime(1970, 1, 1), pd.DataFrame(), []
     bulk_closing_prices: List[FutureClosingPrice] = []
+    for closing_price_datetime, closing_price_df in zip(
+        closing_price_datetimes, closing_price_dfs
+    ):
+        closing_price_df = closing_price_df[
+            (closing_price_df["currency"].str.upper() == "USD")
+            & (closing_price_df["price_type"].str.upper() == "FC")
+        ]
+        for row in closing_price_df.itertuples(index=False):
+            try:
+                future_int_ident = LME_PRODUCT_IDENTIFIER_MAP[
+                    f"{row.underlying}D"
+                ].lower()
+            except KeyError:
+                logger.debug(
+                    "Passed on row with underlying %s as it is currently not listed for ingest",
+                    row.underlying,
+                )
+                continue
+            future_exp_str = datetime.strptime(
+                str(row.forward_date), r"%Y%m%d"
+            ).strftime(r"%y-%m-%d")
+            bulk_closing_prices.append(
+                FutureClosingPrice(
+                    close_date=closing_price_datetime.date(),
+                    future_symbol=f"xlme-{future_int_ident}-usd f {future_exp_str}",
+                    close_price=row.price,
+                )
+            )
+
+    return closing_price_datetimes[0], closing_price_dfs[0], bulk_closing_prices
+
+
+def update_lme_futures_closing_price_data(
+    sqla_session: sqlalchemy.orm.Session,
+    first_run=False,
+) -> Tuple[datetime, pd.DataFrame]:
+    num_dates_to_pull = -1 if first_run else 1
+    (
+        most_recent_dt,
+        most_recent_df,
+        future_closing_prices,
+    ) = pull_lme_futures_closing_price_data(num_data_dates_to_pull=num_dates_to_pull)
+    sqla_session.add_all(future_closing_prices)
+    return most_recent_dt, most_recent_df

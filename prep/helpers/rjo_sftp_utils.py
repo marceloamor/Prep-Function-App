@@ -28,17 +28,32 @@ def get_lme_overnight_data(
     base_file_name: str,
     fetch_most_recent_num=1,
 ) -> Tuple[List[datetime], List[pandas.DataFrame]]:
+    """Fetches and sorts a list of datetimes and associated dataframes
+    of LME overnight data files that are found in the RJO SFTP server.
+
+    Return lists are sorted most recent first.
+
+    :param base_file_name: The base name of the file, `INR`, `FCP`, and
+    `CLO` are all examples.
+    :type base_file_name: str
+    :param fetch_most_recent_num: Number of files to fetch, most recent
+    first, defaults to 1
+    :type fetch_most_recent_num: int, optional
+    :return: A tuple containing a list of datetimes and a list of the
+    data contained in each of the files found associated with the given
+    datetime
+    :rtype: Tuple[List[datetime], List[pandas.DataFrame]]
+    """
     file_datetimes: List[datetime] = []
     file_dfs: List[pandas.DataFrame] = []
     with get_rjo_ssh_client() as rjo_ssh:
         with rjo_ssh.open_sftp() as rjo_sftp_client:
             rjo_sftp_client.chdir("/LMEPrices")
             sftp_files: List[Tuple[datetime, str]] = []
+            filename_pattern = f"%Y%m%d_{base_file_name}_r.csv"
             for filename in rjo_sftp_client.listdir():
                 try:
-                    file_datetime = datetime.strptime(
-                        f"%Y%m%d_{base_file_name}_r.csv", filename
-                    )
+                    file_datetime = datetime.strptime(filename, filename_pattern)
                     sftp_files.append((file_datetime, filename))
                 except ValueError:
                     pass
@@ -65,5 +80,8 @@ def get_lme_overnight_data(
                     )
                     file_dfs.append(file_dataframe)
                     file_datetimes.append(file_dt)
+
+    if len(file_datetimes) == 0:
+        logger.warning("Found no files with basename %s in RJO SFTP", base_file_name)
 
     return file_datetimes, file_dfs
