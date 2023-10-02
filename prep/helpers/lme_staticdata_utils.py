@@ -420,7 +420,7 @@ def pull_lme_futures_closing_price_data(
         ]
         for row in closing_price_df.itertuples(index=False):
             try:
-                future_int_ident = LME_PRODUCT_IDENTIFIER_MAP[
+                future_internal_ident = LME_PRODUCT_IDENTIFIER_MAP[
                     f"{row.underlying}D"
                 ].lower()
             except KeyError:
@@ -435,7 +435,7 @@ def pull_lme_futures_closing_price_data(
             bulk_closing_prices.append(
                 FutureClosingPrice(
                     close_date=closing_price_datetime.date(),
-                    future_symbol=f"xlme-{future_int_ident}-usd f {future_exp_str}",
+                    future_symbol=f"xlme-{future_internal_ident}-usd f {future_exp_str}",
                     close_price=row.price,
                 )
             )
