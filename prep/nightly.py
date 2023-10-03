@@ -31,8 +31,10 @@ LME_TOM_DATE_KEYS = ujson.loads(
 )
 LEGACY_LME_FCP_RECENCY_KEY = os.getenv("LEGACY_LME_FCP_RECENCY_KEY", "FCP_update")
 LEGACY_LME_INR_RECENCY_KEY = os.getenv("LEGACY_LME_INR_RECENCY_KEY", "INR_update")
+LEGACY_LME_CLO_RECENCY_KEY = os.getenv("LEGACY_LME_CLO_RECENCY_KEY", "CLO_update")
 LME_FCP_RECENCY_KEY = os.getenv("LME_FCP_RECENCY_KEY", "prep:health:lme:fcp")
 LME_INR_RECENCY_KEY = os.getenv("LME_INR_RECENCY_KEY", "prep:health:lme:inr")
+LME_CLO_RECENCY_KEY = os.getenv("LME_CLO_RECENCY_KEY", "prep:health:lme:clo")
 
 PREP_USD_RECENCY_KEY = os.getenv("PREP_USD_RECENCY_KEY", "prep:health:rates:usd")
 PREP_GBP_RECENCY_KEY = os.getenv("PREP_GBP_RECENCY_KEY", "prep:health:rates:gbp")
@@ -225,3 +227,25 @@ def update_future_closing_prices_from_lme(
             most_recent_file_dt.strftime(r"%Y%m%d"),
         )
         redis_pipeline.execute()
+
+
+def update_option_closing_prices_from_lme(
+    redis_conn: redis.Redis, engine: sqlalchemy.Engine, first_run=False
+):
+    with sqlalchemy.orm.Session(engine) as session:
+        (
+            most_recent_file_dt,
+            _,
+        ) = lme_staticdata_utils.update_lme_options_closing_price_data(
+            session, first_run=first_run
+        )
+        if most_recent_file_dt == datetime(1970, 1, 1):
+            return
+        session.commit()
+        # currently we don't do anything with the options closing price data
+        # in redis or database, just leaving it there for historical reasons.
+        clo_file_date_str = most_recent_file_dt.strftime(r"%Y%m%d")
+        pipeline = redis_conn.pipeline()
+        pipeline.set(LEGACY_LME_CLO_RECENCY_KEY, clo_file_date_str)
+        pipeline.set(LME_CLO_RECENCY_KEY, clo_file_date_str)
+        pipeline.execute()

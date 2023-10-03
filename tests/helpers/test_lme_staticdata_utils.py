@@ -362,3 +362,29 @@ def test_pull_lme_futures_closing_prices_ideal_data(
         assert (
             closing_price.close_date <= most_recent_closing_price_dt.date()
         ), "Close date was more recent than most recent file"
+
+
+@pytest.mark.parametrize("num_to_pull", [1, -1])
+def test_pull_lme_options_closing_prices_ideal_data(
+    num_to_pull: int, mocker: MockerFixture
+):
+    mocker.patch(
+        "prep.helpers.rjo_sftp_utils.get_rjo_ssh_client",
+        new=get_mock_paramiko_client,
+    )
+
+    (
+        most_recent_closing_price_dt,
+        most_recent_closing_price_df,
+        closing_prices,
+    ) = lme_staticdata_utils.pull_lme_options_closing_price_data(
+        num_data_dates_to_pull=num_to_pull
+    )
+
+    assert most_recent_closing_price_dt == datetime(
+        2023, 9, 29
+    ), "Most recent file had unexpected datetime"
+    for closing_price in closing_prices:
+        assert (
+            closing_price.close_date <= most_recent_closing_price_dt.date()
+        ), "Close date was more recent than most recent file"

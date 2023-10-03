@@ -18,7 +18,7 @@ from upedata.dynamic_data import (
 from upedata.template_language import parser
 import upedata.enums as upe_enums
 
-from dateutil.relativedelta import relativedelta
+from dateutil.relativedelta import relativedelta, WE
 import sqlalchemy.orm
 import pandas as pd
 import numpy as np
@@ -402,6 +402,57 @@ def update_lme_interest_rate_static_data(
     return df_dt, updated_currencies
 
 
+def pull_lme_options_closing_price_data(
+    num_data_dates_to_pull=1,
+) -> Tuple[datetime, pd.DataFrame, List[OptionClosingPrice]]:
+    closing_price_datetimes, closing_price_dfs = rjo_sftp_utils.get_lme_overnight_data(
+        "CLO", fetch_most_recent_num=num_data_dates_to_pull
+    )
+    if len(closing_price_datetimes) == 0:
+        return (datetime(1970, 1, 1), pd.DataFrame(), [])
+
+    bulk_closing_prices: List[OptionClosingPrice] = []
+    for closing_price_df in closing_price_dfs:
+        # filters for just those within the contracts we trade that are option
+        # closing prices
+        closing_price_df = closing_price_df[
+            (closing_price_df["contract_type"].str.upper() == "LMEOPTION")
+            & (closing_price_df["price_type"].str.upper() == "CLOSING")
+            & (closing_price_df["contract"].str.upper().isin(LME_PRODUCT_NAMES))
+        ]
+        pd.options.mode.chained_assignment = None
+        closing_price_df.loc[:, "expiry_date"] = closing_price_df.loc[
+            :, "forward_month"
+        ].apply(
+            lambda yyyy_mm_int: (
+                datetime.strptime(f"{str(int(yyyy_mm_int))}01", r"%Y%m%d")
+                + relativedelta(weekday=WE(1))
+            ).date()
+        )
+        pd.options.mode.chained_assignment = "warn"
+        for row in closing_price_df.itertuples(index=False):
+            option_internal_identifier = LME_PRODUCT_IDENTIFIER_MAP[
+                row.contract.upper()
+            ]
+            bulk_closing_prices.append(
+                OptionClosingPrice(
+                    close_date=datetime.strptime(
+                        str(row.report_date), r"%Y%m%d"
+                    ).date(),
+                    option_symbol=f"xlme-{option_internal_identifier}-usd o {row.expiry_date.strftime(r'%y-%m-%d')} a",
+                    option_strike=float(row.strike),
+                    call_or_put=upe_enums.CallOrPut.CALL
+                    if row.sub_contract_type == "C"
+                    else upe_enums.CallOrPut.PUT,
+                    close_price=row.price,
+                    close_volatility=row.volatility,
+                    close_delta=row.delta,
+                )
+            )
+
+    return closing_price_datetimes[0], closing_price_dfs[0], bulk_closing_prices
+
+
 def pull_lme_futures_closing_price_data(
     num_data_dates_to_pull=1,
 ) -> Tuple[datetime, pd.DataFrame, List[FutureClosingPrice]]:
@@ -420,7 +471,7 @@ def pull_lme_futures_closing_price_data(
         ]
         for row in closing_price_df.itertuples(index=False):
             try:
-                future_int_ident = LME_PRODUCT_IDENTIFIER_MAP[
+                future_internal_ident = LME_PRODUCT_IDENTIFIER_MAP[
                     f"{row.underlying}D"
                 ].lower()
             except KeyError:
@@ -435,7 +486,7 @@ def pull_lme_futures_closing_price_data(
             bulk_closing_prices.append(
                 FutureClosingPrice(
                     close_date=closing_price_datetime.date(),
-                    future_symbol=f"xlme-{future_int_ident}-usd f {future_exp_str}",
+                    future_symbol=f"xlme-{future_internal_ident}-usd f {future_exp_str}",
                     close_price=row.price,
                 )
             )
@@ -454,4 +505,18 @@ def update_lme_futures_closing_price_data(
         future_closing_prices,
     ) = pull_lme_futures_closing_price_data(num_data_dates_to_pull=num_dates_to_pull)
     sqla_session.add_all(future_closing_prices)
+    return most_recent_dt, most_recent_df
+
+
+def update_lme_options_closing_price_data(
+    sqla_session: sqlalchemy.orm.Session,
+    first_run=False,
+) -> Tuple[datetime, pd.DataFrame]:
+    num_dates_to_pull = -1 if first_run else 1
+    (
+        most_recent_dt,
+        most_recent_df,
+        option_closing_prices,
+    ) = pull_lme_options_closing_price_data(num_data_dates_to_pull=num_dates_to_pull)
+    sqla_session.add_all(option_closing_prices)
     return most_recent_dt, most_recent_df
