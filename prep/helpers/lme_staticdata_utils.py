@@ -506,3 +506,17 @@ def update_lme_futures_closing_price_data(
     ) = pull_lme_futures_closing_price_data(num_data_dates_to_pull=num_dates_to_pull)
     sqla_session.add_all(future_closing_prices)
     return most_recent_dt, most_recent_df
+
+
+def update_lme_options_closing_price_data(
+    sqla_session: sqlalchemy.orm.Session,
+    first_run=False,
+) -> Tuple[datetime, pd.DataFrame]:
+    num_dates_to_pull = -1 if first_run else 1
+    (
+        most_recent_dt,
+        most_recent_df,
+        option_closing_prices,
+    ) = pull_lme_options_closing_price_data(num_data_dates_to_pull=num_dates_to_pull)
+    sqla_session.add_all(option_closing_prices)
+    return most_recent_dt, most_recent_df
