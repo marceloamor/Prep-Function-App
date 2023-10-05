@@ -41,6 +41,12 @@ sqlalchemy_pg_url = sqlalchemy.URL(
 pg_engine = sqlalchemy.create_engine(sqlalchemy_pg_url, echo=False)
 
 
+# The first runs are all marked as true because there's no really safe way to store state
+# in these applications without them sometimes shitting the bed, at least with this and
+# downstream changes they should be only pulling files they think they need based on the
+# underlying redis health keys
+
+
 @app.function_name(name="rjo_sftp_lme_overnight_poll")
 @app.schedule(schedule="4/30 2-12 * * TUE-SAT", arg_name="timer", run_on_startup=True)
 def check_for_new_lme_overnight_files(timer: func.TimerRequest):
