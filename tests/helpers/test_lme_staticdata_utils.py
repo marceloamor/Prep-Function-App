@@ -7,9 +7,9 @@ from pytest_mock import mocker, MockerFixture
 import pandas as pd
 import pytest
 
+from typing import List, Dict, IO, Union
 from datetime import datetime, date
 from dateutil import relativedelta
-from typing import List, Dict, IO
 from zoneinfo import ZoneInfo
 import logging
 import os
@@ -313,9 +313,9 @@ def test_populate_full_curve(
         ), "Option `underlying_future.expiry` not found in monthly set"
 
 
-@pytest.mark.parametrize("num_to_pull", [1, -1])
+@pytest.mark.parametrize("num_to_pull", [1, -1, datetime(2023, 9, 26)])
 def test_pull_lme_interest_rate_curve_ideal_data(
-    num_to_pull: int, mocker: MockerFixture
+    num_to_pull: Union[int, datetime], mocker: MockerFixture
 ):
     mocker.patch(
         "prep.helpers.rjo_sftp_utils.get_rjo_ssh_client",
@@ -338,9 +338,9 @@ def test_pull_lme_interest_rate_curve_ideal_data(
         ), "Unexpected currency_symbol"
 
 
-@pytest.mark.parametrize("num_to_pull", [1, -1])
+@pytest.mark.parametrize("num_to_pull", [1, -1, datetime(2023, 9, 26)])
 def test_pull_lme_futures_closing_prices_ideal_data(
-    num_to_pull: int, mocker: MockerFixture
+    num_to_pull: Union[int, datetime], mocker: MockerFixture
 ):
     mocker.patch(
         "prep.helpers.rjo_sftp_utils.get_rjo_ssh_client",
@@ -364,9 +364,9 @@ def test_pull_lme_futures_closing_prices_ideal_data(
         ), "Close date was more recent than most recent file"
 
 
-@pytest.mark.parametrize("num_to_pull", [1, -1])
+@pytest.mark.parametrize("num_to_pull", [1, -1, datetime(2023, 9, 25)])
 def test_pull_lme_options_closing_prices_ideal_data(
-    num_to_pull: int, mocker: MockerFixture
+    num_to_pull: Union[int, datetime], mocker: MockerFixture
 ):
     mocker.patch(
         "prep.helpers.rjo_sftp_utils.get_rjo_ssh_client",

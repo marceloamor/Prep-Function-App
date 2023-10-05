@@ -347,7 +347,7 @@ def pull_lme_interest_rate_curve(
     # with no place in modern software engineering, they can't even do bloody warnings properly
     pd.options.mode.chained_assignment = None
     interest_rate_datetimes, interest_rate_dfs = rjo_sftp_utils.get_lme_overnight_data(
-        "INR", fetch_most_recent_num=num_data_dates_to_pull
+        "INR", num_recent_or_since_dt=num_data_dates_to_pull
     )
     if len(interest_rate_datetimes) == 0:
         return datetime(1970, 1, 1), set(), []
@@ -406,7 +406,7 @@ def pull_lme_options_closing_price_data(
     num_data_dates_to_pull=1,
 ) -> Tuple[datetime, pd.DataFrame, List[OptionClosingPrice]]:
     closing_price_datetimes, closing_price_dfs = rjo_sftp_utils.get_lme_overnight_data(
-        "CLO", fetch_most_recent_num=num_data_dates_to_pull
+        "CLO", num_recent_or_since_dt=num_data_dates_to_pull
     )
     if len(closing_price_datetimes) == 0:
         return (datetime(1970, 1, 1), pd.DataFrame(), [])
@@ -457,7 +457,7 @@ def pull_lme_futures_closing_price_data(
     num_data_dates_to_pull=1,
 ) -> Tuple[datetime, pd.DataFrame, List[FutureClosingPrice]]:
     closing_price_datetimes, closing_price_dfs = rjo_sftp_utils.get_lme_overnight_data(
-        "FCP", fetch_most_recent_num=num_data_dates_to_pull
+        "FCP", num_recent_or_since_dt=num_data_dates_to_pull
     )
     if len(closing_price_datetimes) == 0:
         return datetime(1970, 1, 1), pd.DataFrame(), []
