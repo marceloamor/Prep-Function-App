@@ -23,7 +23,7 @@ import sqlalchemy.orm
 import pandas as pd
 import numpy as np
 
-from typing import List, Dict, Tuple, Optional, Set
+from typing import List, Dict, Tuple, Optional, Set, Union
 from datetime import datetime, date, time
 from dataclasses import dataclass, field
 from zoneinfo import ZoneInfo
@@ -341,7 +341,8 @@ def update_lme_product_static_data(
 
 
 def pull_lme_interest_rate_curve(
-    currencies_to_pull_iso_internal_sym: Dict[str, str], num_data_dates_to_pull=1
+    currencies_to_pull_iso_internal_sym: Dict[str, str],
+    num_data_dates_to_pull: Union[int, datetime],
 ) -> Tuple[datetime, Set[str], List[InterestRate]]:
     # pandas is cancer and needs to be scorched from this Earth, it's a terrible library
     # with no place in modern software engineering, they can't even do bloody warnings properly
@@ -390,12 +391,12 @@ def pull_lme_interest_rate_curve(
 
 
 def update_lme_interest_rate_static_data(
-    sqla_session: sqlalchemy.orm.Session, first_run=False
+    sqla_session: sqlalchemy.orm.Session,
+    most_recent_datetime: Union[int, datetime],
 ) -> Tuple[datetime, Set[str]]:
     LME_CURRENCY_DATA = {"USD": "usd", "EUR": "eur", "GBP": "gbp", "JPY": "jpy"}
-    num_dates_to_pull = -1 if first_run else 1
     df_dt, updated_currencies, interest_rates = pull_lme_interest_rate_curve(
-        LME_CURRENCY_DATA, num_data_dates_to_pull=num_dates_to_pull
+        LME_CURRENCY_DATA, num_data_dates_to_pull=most_recent_datetime
     )
     sqla_session.add_all(interest_rates)
 
@@ -403,7 +404,7 @@ def update_lme_interest_rate_static_data(
 
 
 def pull_lme_options_closing_price_data(
-    num_data_dates_to_pull=1,
+    num_data_dates_to_pull: Union[int, datetime],
 ) -> Tuple[datetime, pd.DataFrame, List[OptionClosingPrice]]:
     closing_price_datetimes, closing_price_dfs = rjo_sftp_utils.get_lme_overnight_data(
         "CLO", num_recent_or_since_dt=num_data_dates_to_pull
@@ -454,7 +455,7 @@ def pull_lme_options_closing_price_data(
 
 
 def pull_lme_futures_closing_price_data(
-    num_data_dates_to_pull=1,
+    num_data_dates_to_pull: Union[int, datetime],
 ) -> Tuple[datetime, pd.DataFrame, List[FutureClosingPrice]]:
     closing_price_datetimes, closing_price_dfs = rjo_sftp_utils.get_lme_overnight_data(
         "FCP", num_recent_or_since_dt=num_data_dates_to_pull
@@ -496,27 +497,25 @@ def pull_lme_futures_closing_price_data(
 
 def update_lme_futures_closing_price_data(
     sqla_session: sqlalchemy.orm.Session,
-    first_run=False,
+    most_recent_datetime=-1,
 ) -> Tuple[datetime, pd.DataFrame]:
-    num_dates_to_pull = -1 if first_run else 1
     (
         most_recent_dt,
         most_recent_df,
         future_closing_prices,
-    ) = pull_lme_futures_closing_price_data(num_data_dates_to_pull=num_dates_to_pull)
+    ) = pull_lme_futures_closing_price_data(num_data_dates_to_pull=most_recent_datetime)
     sqla_session.add_all(future_closing_prices)
     return most_recent_dt, most_recent_df
 
 
 def update_lme_options_closing_price_data(
     sqla_session: sqlalchemy.orm.Session,
-    first_run=False,
+    most_recent_datetime=-1,
 ) -> Tuple[datetime, pd.DataFrame]:
-    num_dates_to_pull = -1 if first_run else 1
     (
         most_recent_dt,
         most_recent_df,
         option_closing_prices,
-    ) = pull_lme_options_closing_price_data(num_data_dates_to_pull=num_dates_to_pull)
+    ) = pull_lme_options_closing_price_data(num_data_dates_to_pull=most_recent_datetime)
     sqla_session.add_all(option_closing_prices)
     return most_recent_dt, most_recent_df
