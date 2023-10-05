@@ -68,6 +68,8 @@ def update_lme_relative_forward_dates(
 
     with sqlalchemy.orm.Session(engine) as session:
         lme_exchange = session.get(Exchange, "xlme")
+        if lme_exchange is None:
+            raise ValueError("Unable to find LME exchange under symbol `xlme`")
         # this is based on the assumption that all LME products share the
         cached_futures_curve_data = None
         for lme_product in lme_exchange.products:

@@ -7,9 +7,6 @@ import logging
 import os
 
 
-logger = logging.getLogger("prep.helpers.rjo_sftp_utils")
-
-
 def get_rjo_ssh_client() -> paramiko.client.SSHClient:
     ssh_client = paramiko.client.SSHClient()
     ssh_client.load_host_keys("./prep/helpers/data_files/rjo_known_hosts")
@@ -19,7 +16,7 @@ def get_rjo_ssh_client() -> paramiko.client.SSHClient:
         username=os.getenv("RJO_SFTP_USER"),
         password=os.getenv("RJO_SFTP_PASS"),
     )
-    logger.debug("Generated RJO SSH client")
+    logging.debug("Generated RJO SSH client")
     return ssh_client
 
 
@@ -89,7 +86,7 @@ def get_lme_overnight_data(
                     file_datetimes.append(file_dt)
 
     if len(file_datetimes) == 0:
-        logger.warning(
+        logging.warning(
             "Found no recent enough files with basename %s in RJO SFTP", base_file_name
         )
 

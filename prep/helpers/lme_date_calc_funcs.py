@@ -9,9 +9,6 @@ import logging
 import copy
 
 
-logger = logging.getLogger("prep.helpers")
-
-
 def get_good_friday_date(year: int) -> date:
     """Returns the Good Friday date for the given year, permitting
     it is between (inclusively) 1583 and 4099.
@@ -138,7 +135,7 @@ def get_3m_datetime(
             guess_3m_datetime - relativedelta.relativedelta(days=i)
         ]
         if i > 10:
-            logger.error(
+            logging.error(
                 "Something has gone very wrong here, ended up stuck in a "
                 "loop trying to find a valid 3M date\n%s\n%s\n%s",
                 current_datetime,

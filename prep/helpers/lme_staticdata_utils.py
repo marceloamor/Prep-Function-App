@@ -59,8 +59,6 @@ LME_PRODUCT_NAME_MAP = {
     for lme_product_name, lme_metal_name in zip(LME_PRODUCT_NAMES, LME_METAL_NAMES)
 }
 
-logger = logging.getLogger("prep.helpers.lme_staticdata_utils")
-
 
 @dataclass
 class LMEFuturesCurve:
@@ -79,7 +77,7 @@ class LMEFuturesCurve:
         not include TOM, CASH, or 3M, but may overlap with monthlies
         or weeklies.
         """
-        logger.debug("Populating `LMEFuturesCurve` broken datetimes")
+        logging.debug("Populating `LMEFuturesCurve` broken datetimes")
         cash_date = self.cash.date()
         three_month_date = self.three_month.date()
         europe_london_tz = ZoneInfo("Europe/London")
@@ -102,7 +100,7 @@ class LMEFuturesCurve:
         :return: Sorted list of prompt datetimes
         :rtype: List[datetime]
         """
-        logger.debug("Generating prompt list from `LMEFuturesCurve`")
+        logging.debug("Generating prompt list from `LMEFuturesCurve`")
         prompt_set = set(
             [self.cash, self.three_month]
             + self.weeklies
@@ -476,7 +474,7 @@ def pull_lme_futures_closing_price_data(
                     f"{row.underlying}D"
                 ].lower()
             except KeyError:
-                logger.debug(
+                logging.debug(
                     "Passed on row with underlying %s as it is currently not listed for ingest",
                     row.underlying,
                 )
