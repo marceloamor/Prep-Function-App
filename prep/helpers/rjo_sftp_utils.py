@@ -32,12 +32,10 @@ def get_lme_overnight_data(
 
     Return lists are sorted most recent first.
 
-    :param base_file_name: The base name of the file, `INR`, `FCP`, and
-        `CLO` are all examples.
+    :param base_file_name: The base name of the file, `INR`, `FCP`, and `CLO` are all examples.
     :type base_file_name: str
-    :param num_recent_or_since_dt: Number of files to count back
-        (n <= 0 -> all files), or datetime in which case files with a datetime
-        more recent than it will be pulled
+    :param num_recent_or_since_dt: Number of files to count back (n <= 0 -> all files),
+    or datetime in which case files with a datetime more recent than it will be pulled
     :type num_recent_or_since_dt: Union[int, datetime]
     :return: A tuple containing a list of datetimes and a list of the
         data contained in each of the files found associated with the given
