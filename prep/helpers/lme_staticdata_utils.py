@@ -495,7 +495,7 @@ def pull_lme_futures_closing_price_data(
 
 def update_lme_futures_closing_price_data(
     sqla_session: sqlalchemy.orm.Session,
-    most_recent_datetime=-1,
+    most_recent_datetime: Union[int, datetime],
 ) -> Tuple[datetime, pd.DataFrame]:
     (
         most_recent_dt,
@@ -508,7 +508,7 @@ def update_lme_futures_closing_price_data(
 
 def update_lme_options_closing_price_data(
     sqla_session: sqlalchemy.orm.Session,
-    most_recent_datetime=-1,
+    most_recent_datetime: Union[int, datetime],
 ) -> Tuple[datetime, pd.DataFrame]:
     (
         most_recent_dt,
