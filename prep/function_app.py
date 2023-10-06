@@ -18,7 +18,7 @@ app = func.FunctionApp()
 
 redis_conn = redis.Redis(
     host=os.getenv("REDIS_HOST"),
-    port=int(os.getenv("REDIS_PORT")),
+    port=int(os.getenv("REDIS_PORT", "6379")),
     password=os.getenv("REDIS_KEY"),
     ssl=True,
     retry=Retry(
@@ -33,7 +33,7 @@ sqlalchemy_pg_url = sqlalchemy.URL(
     os.getenv("DB_SERVER_USERNAME"),
     os.getenv("DB_SERVER_PASSWORD"),
     os.getenv("DB_SERVER_HOST"),
-    int(os.getenv("DB_SERVER_PORT")),
+    int(os.getenv("DB_SERVER_PORT", "5432")),
     os.getenv("DB_SERVER_DATABASE"),
     query={},
 )
