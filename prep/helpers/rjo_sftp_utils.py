@@ -76,7 +76,8 @@ def get_lme_overnight_data(
 
             for file_dt, filename in sorted_sftp_files[0:num_recent_or_since_dt]:
                 with rjo_sftp_client.open(filename) as sftp_file:
-                    file_dataframe = pandas.read_csv(sftp_file, sep=",")
+                    sftp_file.prefetch()
+                    file_dataframe = pandas.read_csv(sftp_file, sep=",")  # type: ignore
                     file_dataframe.columns = (
                         file_dataframe.columns.str.lower()
                         .str.strip()

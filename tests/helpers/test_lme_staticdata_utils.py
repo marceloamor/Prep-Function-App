@@ -72,7 +72,14 @@ class MockParamikoSFTPClient:
 
     def open(self, filename: str, mode="r", bufsize=-1) -> IO:
         logging.warning("Trying to open %s", self.curr_dir + "/" + filename)
-        return open(self.curr_dir + "/" + filename, mode=mode, buffering=bufsize)
+        mock_sftp_file = open(
+            self.curr_dir + "/" + filename, mode=mode, buffering=bufsize
+        )
+        # this is a horrible bit of mockery to get prefetch appearing in the fake
+        # sftp file so tests don't shit themselves.
+        mock_sftp_file.prefetch = lambda: None  # type: ignore
+
+        return mock_sftp_file
 
     def __enter__(self):
         return self
