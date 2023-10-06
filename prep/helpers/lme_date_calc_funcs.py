@@ -270,14 +270,14 @@ def get_tom_datetime(
 
 
 def get_valid_monthly_prompts(
-    current_datetime: datetime, forward_months: Optional[int] = 18
+    current_datetime: datetime, forward_months=18
 ) -> List[datetime]:
     """Generates a list of the monthly prompt dates for the LME
 
     :param current_datetime: The current datetime
     :type current_datetime: datetime
     :param forward_months: Number of months forward to generate, defaults to 18
-    :type forward_months: Optional[int], optional
+    :type forward_months: int, optional
     :return: List of LME monthly forward prompt dates
     :rtype: List[datetime]
     """
