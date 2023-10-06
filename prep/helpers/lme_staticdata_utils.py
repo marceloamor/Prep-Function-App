@@ -146,13 +146,13 @@ def gen_lme_futures(expiry_dates: List[datetime], product: Product) -> List[Futu
                 product=product,
             )
             product_3m_future_price_feed_assoc = FuturePriceFeedAssociation(
-                future=new_lme_future,
-                feed=product_3m_feed,
+                feed_id=LME_FUTURE_3M_FEED_ASSOC[product.short_name],
+                feed_origin="cqg",
                 weighting=1.0,
             )
             product_relative_spread_feed = FuturePriceFeedAssociation(
-                future=new_lme_future,
-                feed=product_3m_relative_spread_feed,
+                feed_id="SPREAD_RELATIVE_TO_3M",
+                feed_origin="local",
                 weighting=1.0,
             )
             new_lme_future.underlying_feeds = [

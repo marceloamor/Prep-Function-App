@@ -1,6 +1,6 @@
 from prep.helpers import lme_staticdata_utils, time_series_interpolation
+from prep.exceptions import ProductNotFound
 from prep import handy_dandy_variables
-from exceptions import ProductNotFound
 
 from upedata.dynamic_data import InterestRate
 from upedata.static_data import Exchange
