@@ -317,7 +317,7 @@ def test_get_tom_datetime(base_datetime, expected_datetime):
 )
 def test_get_all_valid_monthly_prompts(base_datetime: datetime, months_forward: int):
     monthly_prompts = lme_date_calc_funcs.get_valid_monthly_prompts(
-        base_datetime, months_forward
+        base_datetime, forward_months=months_forward
     )
 
     for monthly_prompt in monthly_prompts:

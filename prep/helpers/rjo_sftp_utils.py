@@ -1,14 +1,10 @@
 import paramiko.client
 import pandas
 
-from typing import Tuple, List
+from typing import Tuple, List, Union
 from datetime import datetime
-from zoneinfo import ZoneInfo
 import logging
 import os
-
-
-logger = logging.getLogger("prep.helpers.rjo_sftp_utils")
 
 
 def get_rjo_ssh_client() -> paramiko.client.SSHClient:
@@ -20,28 +16,27 @@ def get_rjo_ssh_client() -> paramiko.client.SSHClient:
         username=os.getenv("RJO_SFTP_USER"),
         password=os.getenv("RJO_SFTP_PASS"),
     )
-    logger.debug("Generated RJO SSH client")
+    logging.debug("Generated RJO SSH client")
     return ssh_client
 
 
 def get_lme_overnight_data(
     base_file_name: str,
-    fetch_most_recent_num=1,
+    num_recent_or_since_dt: Union[int, datetime],
 ) -> Tuple[List[datetime], List[pandas.DataFrame]]:
     """Fetches and sorts a list of datetimes and associated dataframes
     of LME overnight data files that are found in the RJO SFTP server.
 
     Return lists are sorted most recent first.
 
-    :param base_file_name: The base name of the file, `INR`, `FCP`, and
-    `CLO` are all examples.
+    :param base_file_name: The base name of the file, `INR`, `FCP`, and `CLO` are all examples.
     :type base_file_name: str
-    :param fetch_most_recent_num: Number of files to fetch, most recent
-    first, defaults to 1
-    :type fetch_most_recent_num: int, optional
+    :param num_recent_or_since_dt: Number of files to count back (n <= 0 -> all files),
+    or datetime in which case files with a datetime more recent than it will be pulled
+    :type num_recent_or_since_dt: Union[int, datetime]
     :return: A tuple containing a list of datetimes and a list of the
-    data contained in each of the files found associated with the given
-    datetime
+        data contained in each of the files found associated with the given
+        datetime
     :rtype: Tuple[List[datetime], List[pandas.DataFrame]]
     """
     file_datetimes: List[datetime] = []
@@ -60,19 +55,29 @@ def get_lme_overnight_data(
             sorted_sftp_files = sorted(
                 sftp_files, key=lambda file_tuple: file_tuple[0], reverse=True
             )
-            fetch_most_recent_num = (
-                fetch_most_recent_num
-                if fetch_most_recent_num < len(sorted_sftp_files)
-                else len(sorted_sftp_files)
-            )
-            if fetch_most_recent_num > len(
-                sorted_sftp_files
-            ) or fetch_most_recent_num in (-1, 0):
-                fetch_most_recent_num = len(sorted_sftp_files)
+            if isinstance(num_recent_or_since_dt, int):
+                num_recent_or_since_dt = (
+                    num_recent_or_since_dt
+                    if num_recent_or_since_dt < len(sorted_sftp_files)
+                    else len(sorted_sftp_files)
+                )
+                if (
+                    num_recent_or_since_dt > len(sorted_sftp_files)
+                    or num_recent_or_since_dt < 1
+                ):
+                    num_recent_or_since_dt = len(sorted_sftp_files)
+            elif isinstance(num_recent_or_since_dt, datetime):
+                base_end_index = 0
+                current_file_dt = sorted_sftp_files[base_end_index][0]
+                while current_file_dt.date() >= num_recent_or_since_dt.date():
+                    base_end_index += 1
+                    current_file_dt = sorted_sftp_files[base_end_index][0]
+                num_recent_or_since_dt = base_end_index
 
-            for file_dt, filename in sorted_sftp_files[0:fetch_most_recent_num]:
+            for file_dt, filename in sorted_sftp_files[0:num_recent_or_since_dt]:
                 with rjo_sftp_client.open(filename) as sftp_file:
-                    file_dataframe = pandas.read_csv(sftp_file, sep=",")
+                    sftp_file.prefetch()
+                    file_dataframe = pandas.read_csv(sftp_file, sep=",")  # type: ignore
                     file_dataframe.columns = (
                         file_dataframe.columns.str.lower()
                         .str.strip()
@@ -82,6 +87,8 @@ def get_lme_overnight_data(
                     file_datetimes.append(file_dt)
 
     if len(file_datetimes) == 0:
-        logger.warning("Found no files with basename %s in RJO SFTP", base_file_name)
+        logging.warning(
+            "Found no recent enough files with basename %s in RJO SFTP", base_file_name
+        )
 
     return file_datetimes, file_dfs

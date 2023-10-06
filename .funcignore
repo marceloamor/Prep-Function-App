@@ -1,0 +1,7 @@
+.pytest_cache/
+.venv/
+.vscode/
+htmlcov/
+tests/
+.coverage
+local.settings.json

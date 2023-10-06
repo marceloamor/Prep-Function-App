@@ -10,4 +10,4 @@ USE_DEV_KEYS = os.getenv("USE_DEV_KEYS", "true").lower() in (
 )
 redis_key_append = ":dev" if USE_DEV_KEYS else ""
 
-HEALTH_KEY = os.getenv("HEALTH_KEY") + redis_key_append
+HEALTH_KEY = os.getenv("HEALTH_KEY", "prep:health")

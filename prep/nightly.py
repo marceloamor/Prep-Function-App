@@ -2,7 +2,7 @@ from prep.helpers import lme_staticdata_utils, time_series_interpolation
 from prep import handy_dandy_variables
 from exceptions import ProductNotFound
 
-from upedata.dynamic_data import InterestRate, FutureClosingPrice
+from upedata.dynamic_data import InterestRate
 from upedata.static_data import Exchange
 
 from dateutil import relativedelta
@@ -29,11 +29,11 @@ LME_CASH_DATE_KEYS = ujson.loads(
 LME_TOM_DATE_KEYS = ujson.loads(
     os.getenv("LME_TOM_DATE_LOCATIONS_REDIS", '["lme:tom_date"]')
 )
-LEGACY_LME_FCP_RECENCY_KEY = os.getenv("LEGACY_LME_FCP_RECENCY_KEY", "FCP_update")
 LEGACY_LME_INR_RECENCY_KEY = os.getenv("LEGACY_LME_INR_RECENCY_KEY", "INR_update")
+LEGACY_LME_FCP_RECENCY_KEY = os.getenv("LEGACY_LME_FCP_RECENCY_KEY", "FCP_update")
 LEGACY_LME_CLO_RECENCY_KEY = os.getenv("LEGACY_LME_CLO_RECENCY_KEY", "CLO_update")
-LME_FCP_RECENCY_KEY = os.getenv("LME_FCP_RECENCY_KEY", "prep:health:lme:fcp")
 LME_INR_RECENCY_KEY = os.getenv("LME_INR_RECENCY_KEY", "prep:health:lme:inr")
+LME_FCP_RECENCY_KEY = os.getenv("LME_FCP_RECENCY_KEY", "prep:health:lme:fcp")
 LME_CLO_RECENCY_KEY = os.getenv("LME_CLO_RECENCY_KEY", "prep:health:lme:clo")
 
 PREP_USD_RECENCY_KEY = os.getenv("PREP_USD_RECENCY_KEY", "prep:health:rates:usd")
@@ -62,18 +62,20 @@ def update_lme_relative_forward_dates(
     now_london_datetime = datetime.now(
         tz=ZoneInfo("Europe/London")
     ) + relativedelta.relativedelta(hours=6)
-    if now_london_datetime.weekday >= 5:
+    if now_london_datetime.weekday() >= 5:
         logging.info("No updating 3M date on weekends")
         return
 
     with sqlalchemy.orm.Session(engine) as session:
         lme_exchange = session.get(Exchange, "xlme")
+        if lme_exchange is None:
+            raise ValueError("Unable to find LME exchange under symbol `xlme`")
         # this is based on the assumption that all LME products share the
         cached_futures_curve_data = None
         for lme_product in lme_exchange.products:
             lme_futures_curve_data = (
                 lme_staticdata_utils.update_lme_product_static_data(
-                    lme_product, redis_conn, engine, first_run=first_run
+                    lme_product, session, first_run=first_run
                 )
             )
             if (
@@ -104,9 +106,14 @@ def update_lme_relative_forward_dates(
             key + redis_dev_key_append, lme_cash_datetime.strftime(r"%Y%m%d")
         )
     for key in LME_TOM_DATE_KEYS:
-        redis_pipeline.set(
-            key + redis_dev_key_append, lme_tom_datetime.strftime(r"%Y%m%d")
-        )
+        if lme_tom_datetime is not None:
+            redis_pipeline.set(
+                key + redis_dev_key_append, lme_tom_datetime.strftime(r"%Y%m%d")
+            )
+        else:
+            # In the case where there isn't a TOM date (i.e. double cash days)
+            # we want to push no value to Redis for the TOM date so delete it.
+            redis_pipeline.delete(key + redis_dev_key_append)
 
     redis_pipeline.execute()
 
@@ -119,12 +126,19 @@ def update_currency_interest_curves_from_lme(
         for currency_iso_sym in list(UPDATED_CURRENCY_TO_KEY.keys())
     }
 
+    num_to_pull_or_dt = -1 if first_run else 1
+    most_recent_file = redis_conn.get(LME_INR_RECENCY_KEY + redis_dev_key_append)
+    if most_recent_file is not None:
+        try:
+            num_to_pull_or_dt = datetime.strptime(most_recent_file, r"%Y%m%d")
+        except ValueError:
+            pass
     with sqlalchemy.orm.Session(engine) as session:
         (
             most_recent_rate_datetime,
             updated_currencies,
         ) = lme_staticdata_utils.update_lme_interest_rate_static_data(
-            session, first_run=first_run
+            session, most_recent_datetime=num_to_pull_or_dt
         )
         select_most_recent_inr_curve = (
             sqlalchemy.select(InterestRate.to_date, InterestRate.continuous_rate)
@@ -182,12 +196,19 @@ def update_currency_interest_curves_from_lme(
 def update_future_closing_prices_from_lme(
     redis_conn: redis.Redis, engine: sqlalchemy.Engine, first_run=False
 ):
+    num_to_pull_or_dt = -1 if first_run else 1
+    most_recent_file = redis_conn.get(LME_FCP_RECENCY_KEY + redis_dev_key_append)
+    if most_recent_file is not None:
+        try:
+            num_to_pull_or_dt = datetime.strptime(most_recent_file, r"%Y%m%d")
+        except ValueError:
+            pass
     with sqlalchemy.orm.Session(engine) as session:
         (
             most_recent_file_dt,
             most_recent_file_df,
         ) = lme_staticdata_utils.update_lme_futures_closing_price_data(
-            session, first_run=first_run
+            session, most_recent_datetime=num_to_pull_or_dt
         )
         if most_recent_file_dt == datetime(1970, 1, 1):
             return
@@ -232,12 +253,19 @@ def update_future_closing_prices_from_lme(
 def update_option_closing_prices_from_lme(
     redis_conn: redis.Redis, engine: sqlalchemy.Engine, first_run=False
 ):
+    num_to_pull_or_dt = -1 if first_run else 1
+    most_recent_file = redis_conn.get(LME_CLO_RECENCY_KEY + redis_dev_key_append)
+    if most_recent_file is not None:
+        try:
+            num_to_pull_or_dt = datetime.strptime(most_recent_file, r"%Y%m%d")
+        except ValueError:
+            pass
     with sqlalchemy.orm.Session(engine) as session:
         (
             most_recent_file_dt,
             _,
         ) = lme_staticdata_utils.update_lme_options_closing_price_data(
-            session, first_run=first_run
+            session, most_recent_datetime=num_to_pull_or_dt
         )
         if most_recent_file_dt == datetime(1970, 1, 1):
             return
