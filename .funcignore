@@ -4,3 +4,4 @@
 htmlcov/
 tests/
 .coverage
+local.settings.json
