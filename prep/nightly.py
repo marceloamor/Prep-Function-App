@@ -62,7 +62,7 @@ def update_lme_relative_forward_dates(
     now_london_datetime = datetime.now(
         tz=ZoneInfo("Europe/London")
     ) + relativedelta.relativedelta(hours=6)
-    if now_london_datetime.weekday >= 5:
+    if now_london_datetime.weekday() >= 5:
         logging.info("No updating 3M date on weekends")
         return
 
@@ -75,7 +75,7 @@ def update_lme_relative_forward_dates(
         for lme_product in lme_exchange.products:
             lme_futures_curve_data = (
                 lme_staticdata_utils.update_lme_product_static_data(
-                    lme_product, redis_conn, engine, first_run=first_run
+                    lme_product, session, first_run=first_run
                 )
             )
             if (
@@ -106,9 +106,14 @@ def update_lme_relative_forward_dates(
             key + redis_dev_key_append, lme_cash_datetime.strftime(r"%Y%m%d")
         )
     for key in LME_TOM_DATE_KEYS:
-        redis_pipeline.set(
-            key + redis_dev_key_append, lme_tom_datetime.strftime(r"%Y%m%d")
-        )
+        if lme_tom_datetime is not None:
+            redis_pipeline.set(
+                key + redis_dev_key_append, lme_tom_datetime.strftime(r"%Y%m%d")
+            )
+        else:
+            # In the case where there isn't a TOM date (i.e. double cash days)
+            # we want to push no value to Redis for the TOM date so delete it.
+            redis_pipeline.delete(key + redis_dev_key_append)
 
     redis_pipeline.execute()
 
