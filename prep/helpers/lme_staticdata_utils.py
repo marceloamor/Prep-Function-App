@@ -120,22 +120,46 @@ def fetch_lme_option_specification_data(
     return option_spec_data
 
 
-def gen_lme_futures(expiry_dates: List[datetime], product: Product) -> List[Future]:
+def gen_lme_futures(
+    expiry_dates: List[datetime],
+    product: Product,
+    session: Optional[sqlalchemy.orm.Session] = None,
+) -> List[Future]:
     static_data_futures: List[Future] = []
-    product_3m_feed = PriceFeed(
-        feed_id=LME_FUTURE_3M_FEED_ASSOC[product.short_name],
-        origin="cqg",
-        delayed=False,
-        subscribe=True,
-    )
-    product_3m_relative_spread_feed = PriceFeed(
-        feed_id="SPREAD_RELATIVE_TO_3M",
-        origin="local",
-        delayed=False,
-        subscribe=False,
-    )
+    product_3m_feed = None
+    product_3m_relative_spread_feed = None
+    if session is not None:
+        product_3m_feed = session.get(
+            PriceFeed, (LME_FUTURE_3M_FEED_ASSOC[product.short_name], "cqg")
+        )
+        product_3m_relative_spread_feed = session.get(
+            PriceFeed, ("SPREAD_RELATIVE_TO_3M", "local")
+        )
+    if session is None or product_3m_feed is None:
+        product_3m_feed = PriceFeed(
+            feed_id=LME_FUTURE_3M_FEED_ASSOC[product.short_name],
+            origin="cqg",
+            delayed=False,
+            subscribe=True,
+        )
+    if session is None or product_3m_relative_spread_feed is None:
+        product_3m_relative_spread_feed = PriceFeed(
+            feed_id="SPREAD_RELATIVE_TO_3M",
+            origin="local",
+            delayed=False,
+            subscribe=False,
+        )
     for expiry_date in expiry_dates:
         try:
+            # this is terrible and inefficient *but* this runs once a day in the early
+            # hours so it shouldn't matter too much
+            if session is not None:
+                new_lme_future = session.get(
+                    Future, f"{product.symbol} f {expiry_date.strftime(r'%y-%m-%d')}"
+                )
+                if new_lme_future is not None:
+                    static_data_futures.append(new_lme_future)
+                    pass
             new_lme_future = Future(
                 symbol=f"{product.symbol} f {expiry_date.strftime(r'%y-%m-%d')}",
                 display_name=(
@@ -146,13 +170,11 @@ def gen_lme_futures(expiry_dates: List[datetime], product: Product) -> List[Futu
                 product=product,
             )
             product_3m_future_price_feed_assoc = FuturePriceFeedAssociation(
-                feed_id=LME_FUTURE_3M_FEED_ASSOC[product.short_name],
-                feed_origin="cqg",
+                feed=product_3m_feed,
                 weighting=1.0,
             )
             product_relative_spread_feed = FuturePriceFeedAssociation(
-                feed_id="SPREAD_RELATIVE_TO_3M",
-                feed_origin="local",
+                feed=product_3m_relative_spread_feed,
                 weighting=1.0,
             )
             new_lme_future.underlying_feeds = [
@@ -170,7 +192,9 @@ def gen_lme_futures(expiry_dates: List[datetime], product: Product) -> List[Futu
 
 
 def gen_lme_options(
-    futures_list: List[Future], option_specification_data: Dict
+    futures_list: List[Future],
+    option_specification_data: Dict,
+    session: Optional[sqlalchemy.orm.Session] = None,
 ) -> List[Option]:
     two_week_td = relativedelta(days=14)
     generated_options: List[Option] = []
@@ -190,6 +214,15 @@ def gen_lme_options(
                     option_specification_data["specific"][future.product.symbol.lower()]
                     | option_specification_data["shared"]
                 )
+                if session is not None:
+                    # same comment from the gen futures function applies here!
+                    generated_option = session.get(
+                        Option,
+                        f"{future.product.symbol} o {option_expiry_date.strftime(r'%y-%m-%d')} a",
+                    )
+                    if generated_option is not None:
+                        generated_options.append(generated_option)
+                        continue
                 generated_option = Option(
                     symbol=f"{future.product.symbol} o {option_expiry_date.strftime(r'%y-%m-%d')} a",
                     multiplier=general_option_data["multiplier"],
@@ -268,6 +301,7 @@ def populate_primary_curve_datetimes(
 def generate_and_populate_futures_curve(
     product: Product,
     product_holidays: List[Holiday],
+    session: Optional[sqlalchemy.orm.Session] = None,
     populate_options=True,
     populate_broken_dates=False,
     forward_months=18,
@@ -275,14 +309,20 @@ def generate_and_populate_futures_curve(
 ) -> Tuple[LMEFuturesCurve, List[Future], List[Option]]:
     """Generates the futures and options (if `populate_options` is `True`) across the
     entire curve within the limit given by `months_forward`.
+
     Will provide all valid 3M and weekly prompt futures (runs to 6 months) and all monthly
     prompts to the limit of `months_forward`.
+
+    When `session` is provided this function call will handle inserting new static data
+    into the database by value using postgres specific on-conflict resolution queries.
 
     :param product: The static data represtentation of the LME product for which
     to generate derivatives
     :type product: Product
     :param product_holidays: List of all product holidays
     :type product_holidays: List[Holiday]
+    :param session: SQLAlchemy ORM Session object, optionally provided, defaults to None
+    :type session: sqlalchemy.orm.Session, optional, defaults to None
     :param populate_options: Whether to generate options associated with generated monthly
     futures, defaults to True
     :type populate_options: bool, optional
@@ -311,9 +351,11 @@ def generate_and_populate_futures_curve(
         lme_futures_curve.populate_broken_datetimes()
 
     future_expiries = lme_futures_curve.gen_prompt_list()
-    futures = gen_lme_futures(future_expiries, product)
+    futures = gen_lme_futures(future_expiries, product, session=session)
     if populate_options:
-        options = gen_lme_options(futures, fetch_lme_option_specification_data())
+        options = gen_lme_options(
+            futures, fetch_lme_option_specification_data(), session=session
+        )
     else:
         options = []
 
@@ -330,10 +372,13 @@ def update_lme_product_static_data(
         futures,
         options,
     ) = generate_and_populate_futures_curve(
-        lme_product, lme_product.holidays, populate_broken_dates=first_run
+        lme_product,
+        lme_product.holidays,
+        populate_broken_dates=first_run,
+        session=sqla_session,
     )
-    sqla_session.add_all(futures)
-    sqla_session.add_all(options)
+    # sqla_session.add_all(futures)
+    # sqla_session.add_all(options)
 
     return lme_futures_curve
 
