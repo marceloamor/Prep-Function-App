@@ -176,12 +176,14 @@ def test_generate_staticdata_lme_futures_from_prompts(
                 Future(
                     symbol="xlme-lad-usd f 23-11-15",
                     display_name="LAD 2023-11-15",
+                    product_symbol="xlme-lad-usd",
                     product=Product(symbol="xlme-lad-usd", short_name="lad"),
                     expiry=datetime(2023, 11, 15, 19, 30),
                 ),
                 Future(
                     symbol="xlme-lad-usd f 23-11-14",
                     display_name="LAD 2023-11-14",
+                    product_symbol="xlme-lad-usd",
                     product=Product(symbol="xlme-lad-usd", short_name="lad"),
                     expiry=datetime(2023, 11, 14, 19, 30),
                 ),
@@ -244,7 +246,7 @@ def test_generate_staticdata_lme_options_from_futures(
     expected_options_list: List[Option],
 ):
     options_list = lme_staticdata_utils.gen_lme_options(
-        input_futures_list, option_template_data
+        input_futures_list, input_futures_list[0].product, option_template_data
     )
 
     assert len(options_list) == len(
