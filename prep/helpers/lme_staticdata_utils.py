@@ -142,6 +142,8 @@ def gen_lme_futures(
             delayed=False,
             subscribe=True,
         )
+        if session is not None:
+            session.add(product_3m_feed)
     if session is None or product_3m_relative_spread_feed is None:
         product_3m_relative_spread_feed = PriceFeed(
             feed_id="SPREAD_RELATIVE_TO_3M",
@@ -149,6 +151,8 @@ def gen_lme_futures(
             delayed=False,
             subscribe=False,
         )
+        if session is not None:
+            session.add(product_3m_relative_spread_feed)
     for expiry_date in expiry_dates:
         try:
             # this is terrible and inefficient *but* this runs once a day in the early
@@ -159,7 +163,16 @@ def gen_lme_futures(
                 )
                 if new_lme_future is not None:
                     static_data_futures.append(new_lme_future)
-                    pass
+                    # session.add(new_lme_future)
+                    continue
+            product_3m_future_price_feed_assoc = FuturePriceFeedAssociation(
+                feed=product_3m_feed,
+                weighting=1.0,
+            )
+            product_relative_spread_feed = FuturePriceFeedAssociation(
+                feed=product_3m_relative_spread_feed,
+                weighting=1.0,
+            )
             new_lme_future = Future(
                 symbol=f"{product.symbol} f {expiry_date.strftime(r'%y-%m-%d')}",
                 display_name=(
@@ -169,18 +182,12 @@ def gen_lme_futures(
                 multiplier=LME_FUTURE_MULTIPLIERS[product.short_name],
                 product=product,
             )
-            product_3m_future_price_feed_assoc = FuturePriceFeedAssociation(
-                feed=product_3m_feed,
-                weighting=1.0,
-            )
-            product_relative_spread_feed = FuturePriceFeedAssociation(
-                feed=product_3m_relative_spread_feed,
-                weighting=1.0,
-            )
             new_lme_future.underlying_feeds = [
                 product_3m_future_price_feed_assoc,
                 product_relative_spread_feed,
             ]
+            if session is not None:
+                session.add(new_lme_future)
 
         except KeyError:
             raise ProductNotFound(
@@ -193,6 +200,7 @@ def gen_lme_futures(
 
 def gen_lme_options(
     futures_list: List[Future],
+    product: Product,
     option_specification_data: Dict,
     session: Optional[sqlalchemy.orm.Session] = None,
 ) -> List[Option]:
@@ -211,25 +219,25 @@ def gen_lme_options(
                     - two_week_td
                 ).replace(hour=11, minute=15)
                 general_option_data = (
-                    option_specification_data["specific"][future.product.symbol.lower()]
+                    option_specification_data["specific"][product.symbol.lower()]
                     | option_specification_data["shared"]
                 )
                 if session is not None:
                     # same comment from the gen futures function applies here!
                     generated_option = session.get(
                         Option,
-                        f"{future.product.symbol} o {option_expiry_date.strftime(r'%y-%m-%d')} a",
+                        f"{product.symbol} o {option_expiry_date.strftime(r'%y-%m-%d')} a",
                     )
                     if generated_option is not None:
                         generated_options.append(generated_option)
                         continue
                 generated_option = Option(
-                    symbol=f"{future.product.symbol} o {option_expiry_date.strftime(r'%y-%m-%d')} a",
+                    symbol=f"{product.symbol} o {option_expiry_date.strftime(r'%y-%m-%d')} a",
                     multiplier=general_option_data["multiplier"],
                     strike_intervals=general_option_data["strike_intervals"],
                     expiry=option_expiry_date,
                     display_name=option_specification_data["shared"]["display_name"],
-                    product=future.product,
+                    product=product,
                     underlying_future=future,
                     vol_surface=VolSurface(
                         model_type=general_option_data["vol_surface"]["model_type"],
@@ -242,6 +250,8 @@ def gen_lme_options(
                 generated_option = parser.substitute_derivative_generation_time(
                     generated_option
                 )
+                if session is not None:
+                    session.add(generated_option)
                 generated_options.append(generated_option)
 
     return generated_options
@@ -352,10 +362,15 @@ def generate_and_populate_futures_curve(
 
     future_expiries = lme_futures_curve.gen_prompt_list()
     futures = gen_lme_futures(future_expiries, product, session=session)
+    if session is not None:
+        session.add_all(futures)
+
     if populate_options:
         options = gen_lme_options(
-            futures, fetch_lme_option_specification_data(), session=session
+            futures, product, fetch_lme_option_specification_data(), session=session
         )
+        if session is not None:
+            session.add_all(options)
     else:
         options = []
 
