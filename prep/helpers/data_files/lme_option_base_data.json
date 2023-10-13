@@ -1,0 +1,96 @@
+{
+  "shared": {
+    "time_type": 1,
+    "vol_type": 1,
+    "display_name": "#{<option>.product.short_name}£o#{map_month_year_coded(<option>.underlying_future.expiry)}£ @{strike}£ @{call_or_put}£"
+  },
+  "specific": {
+    "xlme-lcu-usd": {
+      "vol_surface": {
+        "model_type": "delta_spline_wing",
+        "params": {
+          "50 Delta": 0.23,
+          "+25 DIFF": 0.01,
+          "-25 DIFF": 0.01,
+          "+10 DIFF": 0.02,
+          "-10 DIFF": 0.02
+        }
+      },
+      "strike_intervals": [
+        [4000, 25],
+        [10000, 50],
+        [14000, -1]
+      ],
+      "multiplier": 25
+    },
+    "xlme-lad-usd": {
+      "vol_surface": {
+        "model_type": "delta_spline_wing",
+        "params": {
+          "50 Delta": 0.2,
+          "+25 DIFF": 0.01,
+          "-25 DIFF": 0.01,
+          "+10 DIFF": 0.02,
+          "-10 DIFF": 0.02
+        }
+      },
+      "strike_intervals": [
+        [1200, 25],
+        [5000, -1]
+      ],
+      "multiplier": 25
+    },
+    "xlme-lzh-usd": {
+      "vol_surface": {
+        "model_type": "delta_spline_wing",
+        "params": {
+          "50 Delta": 0.24,
+          "+25 DIFF": 0.01,
+          "-25 DIFF": 0.01,
+          "+10 DIFF": 0.02,
+          "-10 DIFF": 0.02
+        }
+      },
+      "strike_intervals": [
+        [1500, 25],
+        [5750, -1]
+      ],
+      "multiplier": 25
+    },
+    "xlme-pbd-usd": {
+      "vol_surface": {
+        "model_type": "delta_spline_wing",
+        "params": {
+          "50 Delta": 0.18,
+          "+25 DIFF": 0.005,
+          "-25 DIFF": 0.005,
+          "+10 DIFF": 0.01,
+          "-10 DIFF": 0.01
+        }
+      },
+      "strike_intervals": [
+        [1000, 25],
+        [3500, -1]
+      ],
+      "multiplier": 25
+    },
+    "xlme-lnd-usd": {
+      "vol_surface": {
+        "model_type": "delta_spline_wing",
+        "params": {
+          "50 Delta": 0.34,
+          "+25 DIFF": 0.015,
+          "-25 DIFF": 0.015,
+          "+10 DIFF": 0.03,
+          "-10 DIFF": 0.03
+        }
+      },
+      "strike_intervals": [
+        [15000, 50],
+        [20000, 100],
+        [28000, -1]
+      ],
+      "multiplier": 6
+    }
+  }
+}

@@ -2,13 +2,11 @@ from upedata.static_data import Holiday
 
 from dateutil import relativedelta, easter
 
+from datetime import date, datetime, time
 from typing import Dict, List, Optional
-from datetime import date, datetime
+from zoneinfo import ZoneInfo
 import logging
 import copy
-
-
-logger = logging.getLogger("prep.helpers")
 
 
 def get_good_friday_date(year: int) -> date:
@@ -109,7 +107,9 @@ def get_lme_prompt_map(
     return prompt_map
 
 
-def get_3m_date(current_datetime: datetime, lme_prompt_map: Dict[date, date]) -> date:
+def get_3m_datetime(
+    current_datetime: datetime, lme_prompt_map: Dict[date, date]
+) -> datetime:
     """From the current datetime calculates the LME three month (3M) date,
     requires a valid and up to date `lme_prompt_map` to ensure non-prompts are
     mapped properly.
@@ -135,18 +135,23 @@ def get_3m_date(current_datetime: datetime, lme_prompt_map: Dict[date, date]) ->
             guess_3m_datetime - relativedelta.relativedelta(days=i)
         ]
         if i > 10:
-            logger.error(
+            logging.error(
                 "Something has gone very wrong here, ended up stuck in a "
-                "loop trying to find a valid 3M date"
+                "loop trying to find a valid 3M date\n%s\n%s\n%s",
+                current_datetime,
+                guess_3m_datetime,
+                mapped_guess_3m_datetime,
             )
             break
 
-    return mapped_guess_3m_datetime
+    return datetime.combine(
+        mapped_guess_3m_datetime, time(12, 30, tzinfo=ZoneInfo("Europe/London"))
+    )
 
 
-def get_cash_date(
+def get_cash_datetime(
     current_datetime: datetime, lme_product_holidays: List[Holiday]
-) -> date:
+) -> datetime:
     """Calculates the cash date from the current datetime and a set of LME
     "holidays".
 
@@ -197,12 +202,14 @@ def get_cash_date(
         loops += 1
         current_datetime += relativedelta.relativedelta(days=1)
 
-    return current_datetime.date()
+    return current_datetime.replace(
+        hour=12, minute=30, second=0, microsecond=0, tzinfo=ZoneInfo("Europe/London")
+    )
 
 
-def get_tom_date(
+def get_tom_datetime(
     current_datetime: datetime, lme_product_holidays: List[Holiday]
-) -> Optional[date]:
+) -> Optional[datetime]:
     """Calculated the "Cash Today" or "TOM" date from the current datetime
     if there is one, else returns `None`.
 
@@ -246,7 +253,13 @@ def get_tom_date(
                 return None
             business_days_passed += 1
         elif business_days_passed != 0:
-            return current_datetime.date()
+            return current_datetime.replace(
+                hour=12,
+                minute=30,
+                second=0,
+                microsecond=0,
+                tzinfo=ZoneInfo("Europe/London"),
+            )
         else:
             business_days_passed += 1
 
@@ -257,18 +270,20 @@ def get_tom_date(
 
 
 def get_valid_monthly_prompts(
-    current_datetime: datetime, forward_months: Optional[int] = 18
+    current_datetime: datetime, forward_months=18
 ) -> List[datetime]:
     """Generates a list of the monthly prompt dates for the LME
 
     :param current_datetime: The current datetime
     :type current_datetime: datetime
     :param forward_months: Number of months forward to generate, defaults to 18
-    :type forward_months: Optional[int], optional
+    :type forward_months: int, optional
     :return: List of LME monthly forward prompt dates
     :rtype: List[datetime]
     """
     one_month_offset = relativedelta.relativedelta(months=1)
+    if current_datetime.tzinfo is None:
+        current_datetime.replace(tzinfo=ZoneInfo("Europe/London"))
 
     third_wednesday_monthly_prompts = []
     loops = 0
@@ -278,7 +293,7 @@ def get_valid_monthly_prompts(
             + relativedelta.relativedelta(
                 day=1,
                 weekday=relativedelta.WE(3),
-                hour=19,
+                hour=12,
                 minute=30,
                 second=0,
                 microsecond=0,
@@ -315,7 +330,7 @@ def get_all_valid_weekly_prompts(
     :return: List of valid LME weekly prompts
     :rtype: List[datetime]
     """
-    current_3m_date: date = get_3m_date(current_datetime, lme_prompt_map)
+    current_3m_date: date = get_3m_datetime(current_datetime, lme_prompt_map)
     next_wednesday = current_3m_date + relativedelta.relativedelta(
         days=1, weekday=relativedelta.WE(1)
     )
@@ -328,7 +343,7 @@ def get_all_valid_weekly_prompts(
     ):
         weekly_prompt_dates.append(next_wednesday)
         next_wednesday += relativedelta.relativedelta(
-            weeks=1, hour=19, minute=30, second=0, microsecond=0
+            weeks=1, hour=12, minute=30, second=0, microsecond=0
         )
 
     return weekly_prompt_dates
