@@ -16,13 +16,18 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-20.04
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
-
+      # - name: Hack to fix ACT
+      # run: |
+      # # Hack to get setup-python to work on act
+      # if [ ! -f "/etc/lsb-release" ] ; then
+      #   echo "DISTRIB_RELEASE=20.04" > /etc/lsb-release
+      # fi
       - name: Setup Python version
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v2
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
@@ -45,11 +50,8 @@ jobs:
             !venv/
 
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: build
-    environment:
-      name: "staging"
-      url: ${{ steps.deploy-to-function.outputs.webapp-url }}
 
     steps:
       - name: Download artifact from build job
