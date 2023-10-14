@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "prep"
-version = "0.1.1"
+version = "0.1.2"
 description = ""
 authors = ["fwf-upetrading <frederick.fillingham@upetrading.com>"]
 readme = "README.md"
