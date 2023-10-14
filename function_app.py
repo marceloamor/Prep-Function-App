@@ -64,7 +64,7 @@ pg_engine = sqlalchemy.create_engine(sqlalchemy_pg_url, echo=False)
 
 @app.function_name(name="lme_date_data_updater")
 @app.schedule(
-    schedule="32 1 1 * * *", arg_name="timer", run_on_startup=False, use_monitor=True
+    schedule="32 1 1 * * *", arg_name="timer", run_on_startup=True, use_monitor=True
 )
 def update_lme_date_data(timer: func.TimerRequest):
     logging.info("Starting LME static data update job")
