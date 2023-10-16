@@ -358,6 +358,7 @@ def generate_and_populate_futures_curve(
         _current_datetime=_current_datetime,
     )
     if populate_broken_dates:
+        logging.info("Populating broken date datetimes for `%s`", product.symbol)
         lme_futures_curve.populate_broken_datetimes()
 
     future_expiries = lme_futures_curve.gen_prompt_list()
@@ -366,6 +367,7 @@ def generate_and_populate_futures_curve(
         session.add_all(futures)
 
     if populate_options:
+        logging.info("Generating LME options for `%s`", product.symbol)
         options = gen_lme_options(
             futures, product, fetch_lme_option_specification_data(), session=session
         )

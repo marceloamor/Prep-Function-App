@@ -101,19 +101,38 @@ def update_lme_relative_forward_dates(
         redis_pipeline.set(
             key + redis_dev_key_append, lme_3m_datetime.strftime(r"%Y%m%d")
         )
+        logging.debug(
+            "Set 3M redis key `%s` to `%s",
+            key + redis_dev_key_append,
+            lme_3m_datetime.strftime(r"%Y%m%d"),
+        )
     for key in LME_CASH_DATE_KEYS:
         redis_pipeline.set(
             key + redis_dev_key_append, lme_cash_datetime.strftime(r"%Y%m%d")
+        )
+        logging.debug(
+            "Set CASH redis key `%s` to `%s",
+            key + redis_dev_key_append,
+            lme_cash_datetime.strftime(r"%Y%m%d"),
         )
     for key in LME_TOM_DATE_KEYS:
         if lme_tom_datetime is not None:
             redis_pipeline.set(
                 key + redis_dev_key_append, lme_tom_datetime.strftime(r"%Y%m%d")
             )
+            logging.debug(
+                "Set TOM redis key `%s` to `%s",
+                key + redis_dev_key_append,
+                lme_tom_datetime.strftime(r"%Y%m%d"),
+            )
         else:
             # In the case where there isn't a TOM date (i.e. double cash days)
             # we want to push no value to Redis for the TOM date so delete it.
             redis_pipeline.delete(key + redis_dev_key_append)
+            logging.debug(
+                "Cleared TOM redis key `%s` due to double cash day",
+                key + redis_dev_key_append,
+            )
 
     redis_pipeline.execute()
 
