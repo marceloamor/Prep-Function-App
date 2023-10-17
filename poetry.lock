@@ -1295,12 +1295,12 @@ files = [
 
 [[package]]
 name = "upedata"
-version = "0.4.4"
+version = "0.4.4.1"
 description = "A general collection of ORM classes for use on internal dynamic and static data"
 optional = false
 python-versions = ">=3.10,<4.0"
 files = [
-    {file = "upedata-0.4.4-py3-none-any.whl", hash = "sha256:d5dc8a56163b8a6314e06976555eda893f8836a23bfe8a0ba3b8a097077c3abb"},
+    {file = "upedata-0.4.4.1-py3-none-any.whl", hash = "sha256:e20617c0be6c32a324f7bf055b42bc569035860ca5e320f3fce420c0d384eaaf"},
 ]
 
 [package.dependencies]
@@ -1310,7 +1310,7 @@ sqlalchemy-json = ">=0.6.0,<0.7.0"
 
 [package.source]
 type = "file"
-url = "dependencies/upedata-0.4.4-py3-none-any.whl"
+url = "dependencies/upedata-0.4.4.1-py3-none-any.whl"
 
 [[package]]
 name = "urllib3"
@@ -1332,4 +1332,4 @@ zstd = ["zstandard (>=0.18.0)"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.13"
-content-hash = "db6145e36f4dbd1bda2be0308ab5ec9d55ece8ac0d6f354720913e57aa11023c"
+content-hash = "08dacf59fc66f1759ba3636ae6a6565b8bbf64fbd700374cf98568865795ddfa"
