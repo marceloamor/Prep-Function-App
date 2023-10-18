@@ -12,6 +12,7 @@ from upedata.static_data import (
 from upedata.dynamic_data import (
     FutureClosingPrice,
     OptionClosingPrice,
+    ExchangeRate,
     InterestRate,
     VolSurface,
 )
@@ -398,6 +399,67 @@ def update_lme_product_static_data(
     # sqla_session.add_all(options)
 
     return lme_futures_curve
+
+
+def pull_lme_exchange_rates(
+    currency_symbols_iso_unpaired: Set[str],
+    num_data_dates_to_pull: Union[int, datetime],
+) -> Tuple[datetime, List[ExchangeRate]]:
+    exchange_rate_datetimes, exchange_rate_dfs = rjo_sftp_utils.get_lme_overnight_data(
+        "EXR", num_recent_or_since_dt=num_data_dates_to_pull
+    )
+    if len(exchange_rate_datetimes) == 0:
+        return datetime(1970, 1, 1), []
+
+    bulk_exchange_rates: List[ExchangeRate] = []
+
+    for fx_rate_dt, fx_rate_df in zip(exchange_rate_datetimes, exchange_rate_dfs):
+        fx_rate_df["currency_pair"] = (
+            fx_rate_df["currency_pair"].str.strip().str.upper()
+        )
+        fx_rate_df["base_currency"] = fx_rate_df["currency_pair"].str[:3]
+        fx_rate_df["quote_currency"] = fx_rate_df["currency_pair"].str[3:]
+        # get all rows where the currencies involved are both in our requested
+        # set provided in the function call
+        fx_rate_df_filtered = fx_rate_df.loc[
+            (
+                fx_rate_df.loc[:, "base_currency"].isin(currency_symbols_iso_unpaired)
+                & fx_rate_df.loc[:, "quote_currency"].isin(
+                    currency_symbols_iso_unpaired
+                )
+                & (
+                    fx_rate_df.loc[:, "base_currency"]
+                    != fx_rate_df.loc[:, "quote_currency"]
+                )
+            )
+        ]
+        for row in fx_rate_df_filtered.itertuples(index=False):
+            bulk_exchange_rates.append(
+                ExchangeRate(
+                    published_date=fx_rate_dt.date(),
+                    source="LME",
+                    base_currency_symbol=row.base_currency,
+                    quote_currency_symbol=row.quote_currency,
+                    forward_date=row.forward_date,
+                    rate=row.exchange_rate,
+                )
+            )
+
+    return exchange_rate_datetimes[0], bulk_exchange_rates
+
+
+def update_lme_exchange_rate_data(
+    sqla_session: sqlalchemy.orm.Session,
+    most_recent_datetime: Union[int, datetime],
+    currencies_to_pull_iso_symbols: Set[str],
+) -> datetime:
+    # LME_CURRENCY_DATA = {"USD", "EUR", "GBP", "JPY"}
+    df_dt, exchange_rates = pull_lme_exchange_rates(
+        currencies_to_pull_iso_symbols, num_data_dates_to_pull=most_recent_datetime
+    )
+    sqla_session.add_all(exchange_rates)
+
+    return df_dt
 
 
 def pull_lme_interest_rate_curve(

@@ -2,8 +2,8 @@ from prep.helpers import lme_staticdata_utils, time_series_interpolation
 from prep.exceptions import ProductNotFound
 from prep import handy_dandy_variables
 
+from upedata.static_data import Exchange, Currency
 from upedata.dynamic_data import InterestRate
-from upedata.static_data import Exchange
 
 from dateutil import relativedelta
 import sqlalchemy.orm
@@ -32,9 +32,11 @@ LME_TOM_DATE_KEYS = ujson.loads(
 LEGACY_LME_INR_RECENCY_KEY = os.getenv("LEGACY_LME_INR_RECENCY_KEY", "INR_update")
 LEGACY_LME_FCP_RECENCY_KEY = os.getenv("LEGACY_LME_FCP_RECENCY_KEY", "FCP_update")
 LEGACY_LME_CLO_RECENCY_KEY = os.getenv("LEGACY_LME_CLO_RECENCY_KEY", "CLO_update")
+LEGACY_LME_EXR_RECENCY_KEY = os.getenv("LEGACY_LME_EXR_RECENCY_KEY", "EXR_update")
 LME_INR_RECENCY_KEY = os.getenv("LME_INR_RECENCY_KEY", "prep:health:lme:inr")
 LME_FCP_RECENCY_KEY = os.getenv("LME_FCP_RECENCY_KEY", "prep:health:lme:fcp")
 LME_CLO_RECENCY_KEY = os.getenv("LME_CLO_RECENCY_KEY", "prep:health:lme:clo")
+LME_EXR_RECENCY_KEY = os.getenv("LME_EXR_RECENCY_KEY", "prep:health:lme:exr")
 
 PREP_USD_RECENCY_KEY = os.getenv("PREP_USD_RECENCY_KEY", "prep:health:rates:usd")
 PREP_GBP_RECENCY_KEY = os.getenv("PREP_GBP_RECENCY_KEY", "prep:health:rates:gbp")
@@ -135,6 +137,33 @@ def update_lme_relative_forward_dates(
             )
 
     redis_pipeline.execute()
+
+
+def update_exchange_rate_curves_from_lme(
+    redis_conn: redis.Redis, engine: sqlalchemy.Engine
+):
+    lme_last_exr_dt_ymd = redis_conn.get(LME_EXR_RECENCY_KEY)
+    if lme_last_exr_dt_ymd is None:
+        files_to_fetch = -1
+    else:
+        files_to_fetch = datetime.strptime(
+            lme_last_exr_dt_ymd, r"%Y%m%d"
+        ) + relativedelta.relativedelta(days=1)
+    with sqlalchemy.orm.Session(engine) as session:
+        currency_iso_symbols = (
+            session.execute(sqlalchemy.select(Currency.iso_symbol)).scalars().all()
+        )
+        most_recent_datetime = lme_staticdata_utils.update_lme_exchange_rate_data(
+            session, files_to_fetch, set(currency_iso_symbols)
+        )
+        session.commit()
+    pipeline = redis_conn.pipeline()
+    most_recent_datetime_str = most_recent_datetime.strftime(r"%Y%m%d")
+    pipeline.set(LME_EXR_RECENCY_KEY + redis_dev_key_append, most_recent_datetime_str)
+    pipeline.set(
+        LEGACY_LME_EXR_RECENCY_KEY + redis_dev_key_append, most_recent_datetime_str
+    )
+    pipeline.execute()
 
 
 def update_currency_interest_curves_from_lme(
