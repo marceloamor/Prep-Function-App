@@ -469,40 +469,47 @@ def pull_lme_interest_rate_curve(
     # pandas is cancer and needs to be scorched from this Earth, it's a terrible library
     # with no place in modern software engineering, they can't even do bloody warnings properly
     pd.options.mode.chained_assignment = None
-    interest_rate_datetimes, interest_rate_dfs = rjo_sftp_utils.get_lme_overnight_data(
-        "INR", num_recent_or_since_dt=num_data_dates_to_pull
-    )
-    if len(interest_rate_datetimes) == 0:
-        return datetime(1970, 1, 1), set(), []
-    bulk_interest_rate_data: List[InterestRate] = []
-    # yes of course this isn't the most efficient O(whatever the fuck) implementation
-    # but this code in production will be running twice a day at most so I don't really care
-    valid_currencies_iso = list(currencies_to_pull_iso_internal_sym.keys())
-    most_recent_updated_currencies = set()
-    for rate_datetime, rate_dataframe in zip(
-        interest_rate_datetimes, interest_rate_dfs
-    ):
-        rate_dataframe = rate_dataframe[
-            rate_dataframe["currency"].str.upper().isin(valid_currencies_iso)
-        ]
-        rate_dataframe.loc[:, "continuous_rate"] = np.log(
-            1.0 + rate_dataframe.interest_rate
+    try:
+        (
+            interest_rate_datetimes,
+            interest_rate_dfs,
+        ) = rjo_sftp_utils.get_lme_overnight_data(
+            "INR", num_recent_or_since_dt=num_data_dates_to_pull
         )
-        if rate_datetime == interest_rate_datetimes[0]:
-            for currency_iso in rate_dataframe.currency.unique():
-                most_recent_updated_currencies.add(currency_iso)
-        for row in rate_dataframe.itertuples(index=False):
-            bulk_interest_rate_data.append(
-                InterestRate(
-                    published_date=row.report_date,
-                    to_date=row.forward_date,
-                    currency_symbol=currencies_to_pull_iso_internal_sym[
-                        row.currency.upper()
-                    ],
-                    source="LME",
-                    continuous_rate=row.continuous_rate,
-                )
+        if len(interest_rate_datetimes) == 0:
+            return datetime(1970, 1, 1), set(), []
+        bulk_interest_rate_data: List[InterestRate] = []
+        # yes of course this isn't the most efficient O(whatever the fuck) implementation
+        # but this code in production will be running twice a day at most so I don't really care
+        valid_currencies_iso = list(currencies_to_pull_iso_internal_sym.keys())
+        most_recent_updated_currencies = set()
+        for rate_datetime, rate_dataframe in zip(
+            interest_rate_datetimes, interest_rate_dfs
+        ):
+            rate_dataframe = rate_dataframe[
+                rate_dataframe["currency"].str.upper().isin(valid_currencies_iso)
+            ]
+            rate_dataframe.loc[:, "continuous_rate"] = np.log(
+                1.0 + rate_dataframe.interest_rate
             )
+            if rate_datetime == interest_rate_datetimes[0]:
+                for currency_iso in rate_dataframe.currency.unique():
+                    most_recent_updated_currencies.add(currency_iso)
+            for row in rate_dataframe.itertuples(index=False):
+                bulk_interest_rate_data.append(
+                    InterestRate(
+                        published_date=row.report_date,
+                        to_date=row.forward_date,
+                        currency_symbol=currencies_to_pull_iso_internal_sym[
+                            row.currency.upper()
+                        ],
+                        source="LME",
+                        continuous_rate=row.continuous_rate,
+                    )
+                )
+    except Exception as e:
+        pd.options.mode.chained_assignment = "warn"
+        raise e
     pd.options.mode.chained_assignment = "warn"
 
     return (
