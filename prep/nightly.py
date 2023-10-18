@@ -322,6 +322,8 @@ def update_option_closing_prices_from_lme(
         # in redis or database, just leaving it there for historical reasons.
         clo_file_date_str = most_recent_file_dt.strftime(r"%Y%m%d")
         pipeline = redis_conn.pipeline()
-        pipeline.set(LEGACY_LME_CLO_RECENCY_KEY, clo_file_date_str)
-        pipeline.set(LME_CLO_RECENCY_KEY, clo_file_date_str)
+        pipeline.set(
+            LEGACY_LME_CLO_RECENCY_KEY + redis_dev_key_append, clo_file_date_str
+        )
+        pipeline.set(LME_CLO_RECENCY_KEY + redis_dev_key_append, clo_file_date_str)
         pipeline.execute()
