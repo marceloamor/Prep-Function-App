@@ -364,6 +364,7 @@ def generate_and_populate_futures_curve(
 
     future_expiries = lme_futures_curve.gen_prompt_list()
     futures = gen_lme_futures(future_expiries, product, session=session)
+    logging.info("Now have %s valid futures for `%s`", len(futures), product.symbol)
     if session is not None:
         session.add_all(futures)
 
@@ -372,6 +373,7 @@ def generate_and_populate_futures_curve(
         options = gen_lme_options(
             futures, product, fetch_lme_option_specification_data(), session=session
         )
+        logging.info("Now have %s valid options for `%s`", len(options), product.symbol)
         if session is not None:
             session.add_all(options)
     else:

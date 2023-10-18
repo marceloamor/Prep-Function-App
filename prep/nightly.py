@@ -95,6 +95,12 @@ def update_lme_relative_forward_dates(
         lme_3m_datetime = cached_futures_curve_data.three_month
         lme_cash_datetime = cached_futures_curve_data.cash
         lme_tom_datetime = cached_futures_curve_data.tom
+        logging.info(
+            "Current LME relative forward datetimes (TOM, CASH, 3M): %s, %s, %s",
+            lme_tom_datetime,
+            lme_cash_datetime,
+            lme_3m_datetime,
+        )
 
         session.commit()
 
