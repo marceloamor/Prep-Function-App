@@ -323,6 +323,33 @@ def test_populate_full_curve(
 
 
 @pytest.mark.parametrize("num_to_pull", [1, -1, datetime(2023, 9, 26)])
+def test_pull_lme_exchange_rates_ideal_data(
+    num_to_pull: Union[int, datetime], mocker: MockerFixture
+):
+    mocker.patch(
+        "prep.helpers.rjo_sftp_utils.get_rjo_ssh_client",
+        new=get_mock_paramiko_client,
+    )
+
+    currencies = {"USD", "EUR", "GBP", "JPY"}
+    (
+        latest_dt,
+        exchange_rates,
+    ) = lme_staticdata_utils.pull_lme_exchange_rates(
+        currencies, num_data_dates_to_pull=num_to_pull
+    )
+
+    for exchange_rate_obj in exchange_rates:
+        assert exchange_rate_obj.source == "LME", "Expected LME as exchange rate source"
+        assert (
+            exchange_rate_obj.base_currency_symbol in currencies
+        ), "Unexpected currency_symbol in base attribute"
+        assert (
+            exchange_rate_obj.quote_currency_symbol in currencies
+        ), "Unexpected currency_symbol in quote attribute"
+
+
+@pytest.mark.parametrize("num_to_pull", [1, -1, datetime(2023, 9, 26)])
 def test_pull_lme_interest_rate_curve_ideal_data(
     num_to_pull: Union[int, datetime], mocker: MockerFixture
 ):

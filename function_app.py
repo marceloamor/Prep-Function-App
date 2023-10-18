@@ -64,7 +64,7 @@ pg_engine = sqlalchemy.create_engine(sqlalchemy_pg_url, echo=False)
 
 @app.function_name(name="lme_date_data_updater")
 @app.schedule(
-    schedule="32 1 1 * * MON-FRI",
+    schedule="32 1 2 * * MON-FRI",
     arg_name="timer",
     run_on_startup=True,
     use_monitor=True,
