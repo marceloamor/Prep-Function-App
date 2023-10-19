@@ -6,3 +6,4 @@ htmlcov/
 tests/
 .coverage
 local.settings.json
+__azurite*
