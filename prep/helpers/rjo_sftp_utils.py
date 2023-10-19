@@ -1,7 +1,7 @@
 import paramiko.client
 import pandas
 
-from typing import Tuple, List, Union
+from typing import Tuple, List, Union, Optional
 from datetime import datetime
 import logging
 import os
@@ -27,6 +27,7 @@ def get_rjo_ssh_client() -> paramiko.client.SSHClient:
 def get_lme_overnight_data(
     base_file_name: str,
     num_recent_or_since_dt: Union[int, datetime],
+    date_cols_to_parse: Optional[List[str]] = [],
 ) -> Tuple[List[datetime], List[pandas.DataFrame]]:
     """Fetches and sorts a list of datetimes and associated dataframes
     of LME overnight data files that are found in the RJO SFTP server.
@@ -45,6 +46,11 @@ def get_lme_overnight_data(
     """
     file_datetimes: List[datetime] = []
     file_dfs: List[pandas.DataFrame] = []
+    logging.info(
+        "Searching for `%s` LME files, either dated after or for total count of: %s",
+        base_file_name,
+        num_recent_or_since_dt,
+    )
     with get_rjo_ssh_client() as rjo_ssh:
         with rjo_ssh.open_sftp() as rjo_sftp_client:
             rjo_sftp_client.chdir("/LMEPrices")
@@ -81,7 +87,7 @@ def get_lme_overnight_data(
             for file_dt, filename in sorted_sftp_files[0:num_recent_or_since_dt]:
                 with rjo_sftp_client.open(filename) as sftp_file:
                     sftp_file.prefetch()
-                    file_dataframe = pandas.read_csv(sftp_file, sep=",")  # type: ignore
+                    file_dataframe = pandas.read_csv(sftp_file, sep=",", parse_dates=date_cols_to_parse)  # type: ignore
                     file_dataframe.columns = (
                         file_dataframe.columns.str.lower()
                         .str.strip()
@@ -94,5 +100,7 @@ def get_lme_overnight_data(
         logging.warning(
             "Found no recent enough files with basename %s in RJO SFTP", base_file_name
         )
+    else:
+        logging.info("Found %s files", len(file_datetimes))
 
     return file_datetimes, file_dfs

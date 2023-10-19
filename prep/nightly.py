@@ -184,7 +184,9 @@ def update_currency_interest_curves_from_lme(
     most_recent_file = redis_conn.get(LME_INR_RECENCY_KEY + redis_dev_key_append)
     if most_recent_file is not None:
         try:
-            num_to_pull_or_dt = datetime.strptime(most_recent_file, r"%Y%m%d")
+            num_to_pull_or_dt = datetime.strptime(
+                most_recent_file, r"%Y%m%d"
+            ) + relativedelta.relativedelta(days=1)
         except ValueError:
             pass
     with sqlalchemy.orm.Session(engine) as session:
@@ -201,14 +203,10 @@ def update_currency_interest_curves_from_lme(
         )
         session.commit()
         for curr_iso_sym, rate_data in rate_curve_data.items():
-            interest_rates = (
-                session.execute(
-                    select_most_recent_inr_curve.where(
-                        InterestRate.currency_symbol == curr_iso_sym.lower()
-                    )
+            interest_rates = session.execute(
+                select_most_recent_inr_curve.where(
+                    InterestRate.currency_symbol == curr_iso_sym.lower()
                 )
-                .scalars()
-                .all()
             )
             interest_rate_df = pd.DataFrame.from_records(
                 interest_rates, index="date", columns=["date", "cont_rate"]
@@ -254,7 +252,9 @@ def update_future_closing_prices_from_lme(
     most_recent_file = redis_conn.get(LME_FCP_RECENCY_KEY + redis_dev_key_append)
     if most_recent_file is not None:
         try:
-            num_to_pull_or_dt = datetime.strptime(most_recent_file, r"%Y%m%d")
+            num_to_pull_or_dt = datetime.strptime(
+                most_recent_file, r"%Y%m%d"
+            ) + relativedelta.relativedelta(days=1)
         except ValueError:
             pass
     with sqlalchemy.orm.Session(engine) as session:
@@ -311,7 +311,9 @@ def update_option_closing_prices_from_lme(
     most_recent_file = redis_conn.get(LME_CLO_RECENCY_KEY + redis_dev_key_append)
     if most_recent_file is not None:
         try:
-            num_to_pull_or_dt = datetime.strptime(most_recent_file, r"%Y%m%d")
+            num_to_pull_or_dt = datetime.strptime(
+                most_recent_file, r"%Y%m%d"
+            ) + relativedelta.relativedelta(days=1)
         except ValueError:
             pass
     with sqlalchemy.orm.Session(engine) as session:

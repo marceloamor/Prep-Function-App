@@ -44,33 +44,35 @@ pg_engine = sqlalchemy.create_engine(sqlalchemy_pg_url, echo=False)
 # underlying redis health keys
 
 
-# @app.function_name(name="rjo_sftp_lme_overnight_poll")
-# @app.schedule(schedule="4/30 2-12 * * TUE-SAT", arg_name="timer", run_on_startup=True)
-# def check_for_new_lme_overnight_files(timer: func.TimerRequest):
-#     logging.info("Checking for updated LME overnight files")
-#     logging.info("Updating INR data")
-#     nightly_funcs.update_currency_interest_curves_from_lme(
-#         redis_conn, pg_engine, first_run=True
-#     )
-#     logging.info("Updating FCP data")
-#     nightly_funcs.update_future_closing_prices_from_lme(
-#         redis_conn, pg_engine, first_run=True
-#     )
-#     logging.info("Updating CLO data")
-#     nightly_funcs.update_option_closing_prices_from_lme(
-#         redis_conn, pg_engine, first_run=True
-#     )
-
-
-@app.function_name(name="lme_date_data_updater")
-@app.schedule(
-    schedule="32 1 2 * * MON-FRI",
-    arg_name="timer",
-    use_monitor=True,
-)
-def update_lme_date_data(timer: func.TimerRequest):
-    logging.info("Starting LME static data update job")
-    nightly_funcs.update_lme_relative_forward_dates(
+@app.function_name(name="rjo_sftp_lme_overnight_poll")
+@app.schedule(schedule="4/30 2-12 * * TUE-SAT", arg_name="timer", run_on_startup=True)
+def check_for_new_lme_overnight_files(timer: func.TimerRequest):
+    logging.info("Checking for updated LME overnight files")
+    logging.info("Updating INR data")
+    nightly_funcs.update_currency_interest_curves_from_lme(
         redis_conn, pg_engine, first_run=True
     )
-    logging.info("Completed LME static data update")
+    logging.info("Updating FCP data")
+    nightly_funcs.update_future_closing_prices_from_lme(
+        redis_conn, pg_engine, first_run=True
+    )
+    logging.info("Updating CLO data")
+    nightly_funcs.update_option_closing_prices_from_lme(
+        redis_conn, pg_engine, first_run=True
+    )
+    logging.info("Updating EXR data")
+    nightly_funcs.update_exchange_rate_curves_from_lme(redis_conn, pg_engine)
+
+
+# @app.function_name(name="lme_date_data_updater")
+# @app.schedule(
+#     schedule="32 1 2 * * MON-FRI",
+#     arg_name="timer",
+#     use_monitor=True,
+# )
+# def update_lme_date_data(timer: func.TimerRequest):
+#     logging.info("Starting LME static data update job")
+#     nightly_funcs.update_lme_relative_forward_dates(
+#         redis_conn, pg_engine, first_run=True
+#     )
+#     logging.info("Completed LME static data update")
