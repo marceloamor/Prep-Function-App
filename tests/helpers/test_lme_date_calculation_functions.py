@@ -289,6 +289,10 @@ def test_get_cash_date(base_datetime, expected_date):
             datetime(2025, 10, 10, 19, 31),
             datetime(2025, 10, 14, 12, 30, tzinfo=ZoneInfo("Europe/London")),
         ],
+        [
+            datetime(2023, 10, 19, 2, 1, 32, tzinfo=ZoneInfo("Europe/London")),
+            datetime(2023, 10, 20, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+        ],
     ],
 )
 def test_get_tom_datetime(base_datetime, expected_datetime):

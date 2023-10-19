@@ -262,7 +262,7 @@ def populate_primary_curve_datetimes(
     non_prompts: List[date],
     product_holidays: List[Holiday],
     forward_months=18,
-    _current_datetime=datetime.now(tz=ZoneInfo("Europe/London")),
+    _current_datetime=None,
 ) -> LMEFuturesCurve:
     """Generates and populates a container dataclass with the primary
     prompt dates associated with a given LME product, this will
@@ -283,6 +283,8 @@ def populate_primary_curve_datetimes(
     :return: Container for LME product future prompt datetimes
     :rtype: LMEFuturesCurve
     """
+    if not isinstance(_current_datetime, datetime):
+        _current_datetime = datetime.now(tz=ZoneInfo("Europe/London"))
     lme_prompt_map = lme_date_calc_funcs.get_lme_prompt_map(non_prompts)
     lme_3m_datetime = lme_date_calc_funcs.get_3m_datetime(
         _current_datetime, lme_prompt_map
@@ -316,7 +318,7 @@ def generate_and_populate_futures_curve(
     populate_options=True,
     populate_broken_dates=False,
     forward_months=18,
-    _current_datetime=datetime.now(tz=ZoneInfo("Europe/London")),
+    _current_datetime=lambda: datetime.now(tz=ZoneInfo("Europe/London")),
 ) -> Tuple[LMEFuturesCurve, List[Future], List[Option]]:
     """Generates the futures and options (if `populate_options` is `True`) across the
     entire curve within the limit given by `months_forward`.
@@ -356,7 +358,9 @@ def generate_and_populate_futures_curve(
         non_prompts,
         product_holidays,
         forward_months=forward_months,
-        _current_datetime=_current_datetime,
+        _current_datetime=_current_datetime
+        if isinstance(_current_datetime, datetime)
+        else _current_datetime(),
     )
     if populate_broken_dates:
         logging.info("Populating broken date datetimes for `%s`", product.symbol)
