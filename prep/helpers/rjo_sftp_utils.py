@@ -10,9 +10,13 @@ import os
 def get_rjo_ssh_client() -> paramiko.client.SSHClient:
     ssh_client = paramiko.client.SSHClient()
     ssh_client.load_host_keys("./prep/helpers/data_files/rjo_known_hosts")
+    rjo_sftp_host = os.getenv("RJO_SFTP_HOST")
+    rjo_sftp_port = os.getenv("RJO_SFTP_PORT")
+    assert rjo_sftp_host is not None, "RJO_SFTP_HOST wasn't provided"
+    assert rjo_sftp_port is not None, "RJO_SFTP_PORT wasn't provided"
     ssh_client.connect(
-        hostname=os.getenv("RJO_SFTP_HOST"),
-        port=int(os.getenv("RJO_SFTP_PORT")),
+        hostname=rjo_sftp_host,
+        port=int(rjo_sftp_port),
         username=os.getenv("RJO_SFTP_USER"),
         password=os.getenv("RJO_SFTP_PASS"),
     )

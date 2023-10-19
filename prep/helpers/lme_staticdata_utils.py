@@ -12,6 +12,7 @@ from upedata.static_data import (
 from upedata.dynamic_data import (
     FutureClosingPrice,
     OptionClosingPrice,
+    ExchangeRate,
     InterestRate,
     VolSurface,
 )
@@ -261,7 +262,7 @@ def populate_primary_curve_datetimes(
     non_prompts: List[date],
     product_holidays: List[Holiday],
     forward_months=18,
-    _current_datetime=datetime.now(tz=ZoneInfo("Europe/London")),
+    _current_datetime=None,
 ) -> LMEFuturesCurve:
     """Generates and populates a container dataclass with the primary
     prompt dates associated with a given LME product, this will
@@ -282,6 +283,8 @@ def populate_primary_curve_datetimes(
     :return: Container for LME product future prompt datetimes
     :rtype: LMEFuturesCurve
     """
+    if not isinstance(_current_datetime, datetime):
+        _current_datetime = datetime.now(tz=ZoneInfo("Europe/London"))
     lme_prompt_map = lme_date_calc_funcs.get_lme_prompt_map(non_prompts)
     lme_3m_datetime = lme_date_calc_funcs.get_3m_datetime(
         _current_datetime, lme_prompt_map
@@ -315,7 +318,7 @@ def generate_and_populate_futures_curve(
     populate_options=True,
     populate_broken_dates=False,
     forward_months=18,
-    _current_datetime=datetime.now(tz=ZoneInfo("Europe/London")),
+    _current_datetime=lambda: datetime.now(tz=ZoneInfo("Europe/London")),
 ) -> Tuple[LMEFuturesCurve, List[Future], List[Option]]:
     """Generates the futures and options (if `populate_options` is `True`) across the
     entire curve within the limit given by `months_forward`.
@@ -355,20 +358,26 @@ def generate_and_populate_futures_curve(
         non_prompts,
         product_holidays,
         forward_months=forward_months,
-        _current_datetime=_current_datetime,
+        _current_datetime=_current_datetime
+        if isinstance(_current_datetime, datetime)
+        else _current_datetime(),
     )
     if populate_broken_dates:
+        logging.info("Populating broken date datetimes for `%s`", product.symbol)
         lme_futures_curve.populate_broken_datetimes()
 
     future_expiries = lme_futures_curve.gen_prompt_list()
     futures = gen_lme_futures(future_expiries, product, session=session)
+    logging.info("Now have %s valid futures for `%s`", len(futures), product.symbol)
     if session is not None:
         session.add_all(futures)
 
     if populate_options:
+        logging.info("Generating LME options for `%s`", product.symbol)
         options = gen_lme_options(
             futures, product, fetch_lme_option_specification_data(), session=session
         )
+        logging.info("Now have %s valid options for `%s`", len(options), product.symbol)
         if session is not None:
             session.add_all(options)
     else:
@@ -398,6 +407,67 @@ def update_lme_product_static_data(
     return lme_futures_curve
 
 
+def pull_lme_exchange_rates(
+    currency_symbols_iso_unpaired: Set[str],
+    num_data_dates_to_pull: Union[int, datetime],
+) -> Tuple[datetime, List[ExchangeRate]]:
+    exchange_rate_datetimes, exchange_rate_dfs = rjo_sftp_utils.get_lme_overnight_data(
+        "EXR", num_recent_or_since_dt=num_data_dates_to_pull
+    )
+    if len(exchange_rate_datetimes) == 0:
+        return datetime(1970, 1, 1), []
+
+    bulk_exchange_rates: List[ExchangeRate] = []
+
+    for fx_rate_dt, fx_rate_df in zip(exchange_rate_datetimes, exchange_rate_dfs):
+        fx_rate_df["currency_pair"] = (
+            fx_rate_df["currency_pair"].str.strip().str.upper()
+        )
+        fx_rate_df["base_currency"] = fx_rate_df["currency_pair"].str[:3]
+        fx_rate_df["quote_currency"] = fx_rate_df["currency_pair"].str[3:]
+        # get all rows where the currencies involved are both in our requested
+        # set provided in the function call
+        fx_rate_df_filtered = fx_rate_df.loc[
+            (
+                fx_rate_df.loc[:, "base_currency"].isin(currency_symbols_iso_unpaired)
+                & fx_rate_df.loc[:, "quote_currency"].isin(
+                    currency_symbols_iso_unpaired
+                )
+                & (
+                    fx_rate_df.loc[:, "base_currency"]
+                    != fx_rate_df.loc[:, "quote_currency"]
+                )
+            )
+        ]
+        for row in fx_rate_df_filtered.itertuples(index=False):
+            bulk_exchange_rates.append(
+                ExchangeRate(
+                    published_date=fx_rate_dt.date(),
+                    source="LME",
+                    base_currency_symbol=row.base_currency,
+                    quote_currency_symbol=row.quote_currency,
+                    forward_date=row.forward_date,
+                    rate=row.exchange_rate,
+                )
+            )
+
+    return exchange_rate_datetimes[0], bulk_exchange_rates
+
+
+def update_lme_exchange_rate_data(
+    sqla_session: sqlalchemy.orm.Session,
+    most_recent_datetime: Union[int, datetime],
+    currencies_to_pull_iso_symbols: Set[str],
+) -> datetime:
+    # LME_CURRENCY_DATA = {"USD", "EUR", "GBP", "JPY"}
+    df_dt, exchange_rates = pull_lme_exchange_rates(
+        currencies_to_pull_iso_symbols, num_data_dates_to_pull=most_recent_datetime
+    )
+    sqla_session.add_all(exchange_rates)
+
+    return df_dt
+
+
 def pull_lme_interest_rate_curve(
     currencies_to_pull_iso_internal_sym: Dict[str, str],
     num_data_dates_to_pull: Union[int, datetime],
@@ -405,40 +475,47 @@ def pull_lme_interest_rate_curve(
     # pandas is cancer and needs to be scorched from this Earth, it's a terrible library
     # with no place in modern software engineering, they can't even do bloody warnings properly
     pd.options.mode.chained_assignment = None
-    interest_rate_datetimes, interest_rate_dfs = rjo_sftp_utils.get_lme_overnight_data(
-        "INR", num_recent_or_since_dt=num_data_dates_to_pull
-    )
-    if len(interest_rate_datetimes) == 0:
-        return datetime(1970, 1, 1), set(), []
-    bulk_interest_rate_data: List[InterestRate] = []
-    # yes of course this isn't the most efficient O(whatever the fuck) implementation
-    # but this code in production will be running twice a day at most so I don't really care
-    valid_currencies_iso = list(currencies_to_pull_iso_internal_sym.keys())
-    most_recent_updated_currencies = set()
-    for rate_datetime, rate_dataframe in zip(
-        interest_rate_datetimes, interest_rate_dfs
-    ):
-        rate_dataframe = rate_dataframe[
-            rate_dataframe["currency"].str.upper().isin(valid_currencies_iso)
-        ]
-        rate_dataframe.loc[:, "continuous_rate"] = np.log(
-            1.0 + rate_dataframe.interest_rate
+    try:
+        (
+            interest_rate_datetimes,
+            interest_rate_dfs,
+        ) = rjo_sftp_utils.get_lme_overnight_data(
+            "INR", num_recent_or_since_dt=num_data_dates_to_pull
         )
-        if rate_datetime == interest_rate_datetimes[0]:
-            for currency_iso in rate_dataframe.currency.unique():
-                most_recent_updated_currencies.add(currency_iso)
-        for row in rate_dataframe.itertuples(index=False):
-            bulk_interest_rate_data.append(
-                InterestRate(
-                    published_date=row.report_date,
-                    to_date=row.forward_date,
-                    currency_symbol=currencies_to_pull_iso_internal_sym[
-                        row.currency.upper()
-                    ],
-                    source="LME",
-                    continuous_rate=row.continuous_rate,
-                )
+        if len(interest_rate_datetimes) == 0:
+            return datetime(1970, 1, 1), set(), []
+        bulk_interest_rate_data: List[InterestRate] = []
+        # yes of course this isn't the most efficient O(whatever the fuck) implementation
+        # but this code in production will be running twice a day at most so I don't really care
+        valid_currencies_iso = list(currencies_to_pull_iso_internal_sym.keys())
+        most_recent_updated_currencies = set()
+        for rate_datetime, rate_dataframe in zip(
+            interest_rate_datetimes, interest_rate_dfs
+        ):
+            rate_dataframe = rate_dataframe[
+                rate_dataframe["currency"].str.upper().isin(valid_currencies_iso)
+            ]
+            rate_dataframe.loc[:, "continuous_rate"] = np.log(
+                1.0 + rate_dataframe.interest_rate
             )
+            if rate_datetime == interest_rate_datetimes[0]:
+                for currency_iso in rate_dataframe.currency.unique():
+                    most_recent_updated_currencies.add(currency_iso)
+            for row in rate_dataframe.itertuples(index=False):
+                bulk_interest_rate_data.append(
+                    InterestRate(
+                        published_date=row.report_date,
+                        to_date=row.forward_date,
+                        currency_symbol=currencies_to_pull_iso_internal_sym[
+                            row.currency.upper()
+                        ],
+                        source="LME",
+                        continuous_rate=row.continuous_rate,
+                    )
+                )
+    except Exception as e:
+        pd.options.mode.chained_assignment = "warn"
+        raise e
     pd.options.mode.chained_assignment = "warn"
 
     return (

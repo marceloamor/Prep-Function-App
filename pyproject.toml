@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "prep"
-version = "0.1.2"
+version = "0.1.3"
 description = ""
 authors = ["fwf-upetrading <frederick.fillingham@upetrading.com>"]
 readme = "README.md"
@@ -8,12 +8,12 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = ">=3.10,<3.13"
 sqlalchemy = "^2.0.19"
-psycopg = { extras = ["binary"], version = "^3.1.9" }
+psycopg = {extras = ["binary"], version = "^3.1.9"}
 sqlalchemy-json = "^0.6.0"
-redis = { extras = ["hiredis"], version = "^4.6.0" }
+redis = {extras = ["hiredis"], version = "^4.6.0"}
 azure-functions = "^1.15.0"
 python-dateutil = "^2.8.2"
-upedata = { path = "dependencies/upedata-0.4.3.2-py3-none-any.whl" }
+upedata = {path = "dependencies/upedata-0.4.4.2-py3-none-any.whl"}
 requests = "^2.31.0"
 ujson = "^5.8.0"
 paramiko = "^3.3.1"
