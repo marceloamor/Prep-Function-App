@@ -19,12 +19,13 @@ from upedata.dynamic_data import (
 from upedata.template_language import parser
 import upedata.enums as upe_enums
 
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from dateutil.relativedelta import relativedelta, WE
 import sqlalchemy.orm
 import pandas as pd
 import numpy as np
 
-from typing import List, Dict, Tuple, Optional, Set, Union
+from typing import List, Dict, Tuple, Optional, Set, Union, Any
 from datetime import datetime, date, time
 from dataclasses import dataclass, field
 from zoneinfo import ZoneInfo
@@ -412,7 +413,9 @@ def pull_lme_exchange_rates(
     num_data_dates_to_pull: Union[int, datetime],
 ) -> Tuple[datetime, List[ExchangeRate]]:
     exchange_rate_datetimes, exchange_rate_dfs = rjo_sftp_utils.get_lme_overnight_data(
-        "EXR", num_recent_or_since_dt=num_data_dates_to_pull
+        "EXR",
+        num_recent_or_since_dt=num_data_dates_to_pull,
+        date_cols_to_parse=["REPORT_DATE", "FORWARD_DATE"],
     )
     if len(exchange_rate_datetimes) == 0:
         return datetime(1970, 1, 1), []
@@ -480,7 +483,9 @@ def pull_lme_interest_rate_curve(
             interest_rate_datetimes,
             interest_rate_dfs,
         ) = rjo_sftp_utils.get_lme_overnight_data(
-            "INR", num_recent_or_since_dt=num_data_dates_to_pull
+            "INR",
+            num_recent_or_since_dt=num_data_dates_to_pull,
+            date_cols_to_parse=["REPORT_DATE", "FORWARD_DATE"],
         )
         if len(interest_rate_datetimes) == 0:
             return datetime(1970, 1, 1), set(), []
@@ -533,7 +538,15 @@ def update_lme_interest_rate_static_data(
     df_dt, updated_currencies, interest_rates = pull_lme_interest_rate_curve(
         LME_CURRENCY_DATA, num_data_dates_to_pull=most_recent_datetime
     )
-    sqla_session.add_all(interest_rates)
+    interest_rate_list_of_dicts: List[Dict[str, Any]] = []
+    for interest_rate_obj in interest_rates:
+        interest_rate_list_of_dicts.append(interest_rate_obj.to_dict())
+
+    if len(interest_rates) > 0:
+        stmt = pg_insert(InterestRate).on_conflict_do_nothing()
+        sqla_session.execute(stmt, interest_rate_list_of_dicts)
+    else:
+        pass
 
     return df_dt, updated_currencies
 
@@ -542,7 +555,9 @@ def pull_lme_options_closing_price_data(
     num_data_dates_to_pull: Union[int, datetime],
 ) -> Tuple[datetime, pd.DataFrame, List[OptionClosingPrice]]:
     closing_price_datetimes, closing_price_dfs = rjo_sftp_utils.get_lme_overnight_data(
-        "CLO", num_recent_or_since_dt=num_data_dates_to_pull
+        "CLO",
+        num_recent_or_since_dt=num_data_dates_to_pull,
+        date_cols_to_parse=["REPORT_DATE"],
     )
     if len(closing_price_datetimes) == 0:
         return (datetime(1970, 1, 1), pd.DataFrame(), [])
@@ -572,9 +587,7 @@ def pull_lme_options_closing_price_data(
             ]
             bulk_closing_prices.append(
                 OptionClosingPrice(
-                    close_date=datetime.strptime(
-                        str(row.report_date), r"%Y%m%d"
-                    ).date(),
+                    close_date=row.report_date.date(),
                     option_symbol=f"xlme-{option_internal_identifier}-usd o {row.expiry_date.strftime(r'%y-%m-%d')} a",
                     option_strike=float(row.strike),
                     call_or_put=upe_enums.CallOrPut.CALL
@@ -593,7 +606,9 @@ def pull_lme_futures_closing_price_data(
     num_data_dates_to_pull: Union[int, datetime],
 ) -> Tuple[datetime, pd.DataFrame, List[FutureClosingPrice]]:
     closing_price_datetimes, closing_price_dfs = rjo_sftp_utils.get_lme_overnight_data(
-        "FCP", num_recent_or_since_dt=num_data_dates_to_pull
+        "FCP",
+        num_recent_or_since_dt=num_data_dates_to_pull,
+        # date_cols_to_parse=["REPORT_DATE", "FORWARD_DATE"],
     )
     if len(closing_price_datetimes) == 0:
         return datetime(1970, 1, 1), pd.DataFrame(), []
