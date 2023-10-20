@@ -196,34 +196,49 @@ def update_currency_interest_curves_from_lme(
         ) = lme_staticdata_utils.update_lme_interest_rate_static_data(
             session, most_recent_datetime=num_to_pull_or_dt
         )
-        select_most_recent_inr_curve = (
-            sqlalchemy.select(InterestRate.to_date, InterestRate.continuous_rate)
-            .where(InterestRate.source == "LME")
-            .where(InterestRate.published_date == most_recent_rate_datetime.date())
+        # selects the most recent set of interest rates published for specific
+        # currency and then returns the date they're forward to and the cont_rate
+        select_most_recent_inr_curve_stmt = sqlalchemy.text(
+            """
+                SELECT DISTINCT ON (to_date, currency_symbol, "source")
+                    to_date, continuous_rate
+                    FROM interest_rates
+                WHERE "source" = 'LME' AND to_date >= CURRENT_DATE - 1 AND currency_symbol = :currency_symbol
+                ORDER BY to_date, currency_symbol, "source", published_date DESC
+            """
         )
         session.commit()
         for curr_iso_sym, rate_data in rate_curve_data.items():
             interest_rates = session.execute(
-                select_most_recent_inr_curve.where(
-                    InterestRate.currency_symbol == curr_iso_sym.lower()
-                )
+                select_most_recent_inr_curve_stmt,
+                {"currency_symbol": curr_iso_sym.lower()},
             )
             interest_rate_df = pd.DataFrame.from_records(
-                interest_rates, index="date", columns=["date", "cont_rate"]
+                interest_rates,
+                columns=["to_date", "continuous_rate"],
             )
-            interest_rate_df.index = pd.DatetimeIndex(data=interest_rate_df.index)
-            interest_rate_df = time_series_interpolation.interpolate_on_time_series_df(
-                interest_rate_df,
-                "cont_rate",
-                "interp_cont_rate",
+            interest_rate_df.loc[:, "continuous_rate"] = pd.to_numeric(
+                interest_rate_df.loc[:, "continuous_rate"], downcast="float"
             )
-            for interest_rate_row_data in interest_rate_df.itertuples():
+            interest_rate_df.index = pd.DatetimeIndex(
+                data=pd.to_datetime(interest_rate_df["to_date"].to_list())
+            )
+
+            interped_interest_rate_df = (
+                time_series_interpolation.interpolate_on_time_series_df(
+                    interest_rate_df,
+                    "continuous_rate",
+                    "interp_cont_rate",
+                )
+            )
+            # logging.info(interped_interest_rate_df)
+            for interest_rate_row_data in interped_interest_rate_df.itertuples():
                 rate_data["legacy"][
                     interest_rate_row_data.Index.strftime(r"%Y%m%d")
-                ] = {"Interest Rate": interest_rate_row_data.cont_rate}
+                ] = {"Interest Rate": interest_rate_row_data.interp_cont_rate}
                 rate_data["new"][
                     interest_rate_row_data.Index.strftime(r"%Y%m%d")
-                ] = interest_rate_row_data.cont_rate
+                ] = interest_rate_row_data.interp_cont_rate
         session.commit()
 
     redis_pipeline = redis_conn.pipeline()
@@ -238,6 +253,7 @@ def update_currency_interest_curves_from_lme(
             + redis_dev_key_append,
             most_recent_dt_Ymd,
         )
+        logging.info("Updated `INR` data for %s", updated_currency_iso.upper())
     redis_pipeline.set(
         LEGACY_LME_INR_RECENCY_KEY + redis_dev_key_append, most_recent_dt_Ymd
     )

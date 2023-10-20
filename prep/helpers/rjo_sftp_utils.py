@@ -78,10 +78,17 @@ def get_lme_overnight_data(
                     num_recent_or_since_dt = len(sorted_sftp_files)
             elif isinstance(num_recent_or_since_dt, datetime):
                 base_end_index = 0
-                current_file_dt = sorted_sftp_files[base_end_index][0]
-                while current_file_dt.date() >= num_recent_or_since_dt.date():
-                    base_end_index += 1
+                current_file_dt = datetime(
+                    2400, 1, 1
+                )  # placeholder to get into the for loop :)
+                num_sorted_files = len(sorted_sftp_files)
+                while (
+                    current_file_dt.date() >= num_recent_or_since_dt.date()
+                    and base_end_index < num_sorted_files
+                ):
                     current_file_dt = sorted_sftp_files[base_end_index][0]
+                    base_end_index += 1
+                # if base_end_index ==
                 num_recent_or_since_dt = base_end_index
 
             for file_dt, filename in sorted_sftp_files[0:num_recent_or_since_dt]:

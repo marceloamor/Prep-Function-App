@@ -25,7 +25,7 @@ import sqlalchemy.orm
 import pandas as pd
 import numpy as np
 
-from typing import List, Dict, Tuple, Optional, Set, Union
+from typing import List, Dict, Tuple, Optional, Set, Union, Any
 from datetime import datetime, date, time
 from dataclasses import dataclass, field
 from zoneinfo import ZoneInfo
@@ -538,12 +538,15 @@ def update_lme_interest_rate_static_data(
     df_dt, updated_currencies, interest_rates = pull_lme_interest_rate_curve(
         LME_CURRENCY_DATA, num_data_dates_to_pull=most_recent_datetime
     )
-    stmt = pg_insert(InterestRate).values(interest_rates)
-    stmt = stmt.on_conflict_do_update(
-        "interest_rate_pkey",
-        set_={InterestRate.continuous_rate: stmt.excluded.continuous_rate},
-    )
-    sqla_session.bulk_save_objects(interest_rates)
+    interest_rate_list_of_dicts: List[Dict[str, Any]] = []
+    for interest_rate_obj in interest_rates:
+        interest_rate_list_of_dicts.append(interest_rate_obj.to_dict())
+
+    if len(interest_rates) > 0:
+        stmt = pg_insert(InterestRate).on_conflict_do_nothing()
+        sqla_session.execute(stmt, interest_rate_list_of_dicts)
+    else:
+        pass
 
     return df_dt, updated_currencies
 

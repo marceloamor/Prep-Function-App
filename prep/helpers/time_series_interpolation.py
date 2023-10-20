@@ -18,12 +18,12 @@ def interpolate_on_time_series_df(
     )
     new_df = base_dataframe.copy(deep=True)
 
-    new_interpolation_dts: pd.DatetimeIndex = new_interpolation_dts.append(
-        base_dataframe.index
-    )
-    new_interpolation_dts = new_interpolation_dts.unique()
+    # new_interpolation_dts: pd.DatetimeIndex =
+    # new_interpolation_dts = new_interpolation_dts.unique()
     new_df = new_df.reindex(new_interpolation_dts)
-    new_df.loc[:, output_column_name] = new_df.loc[:, data_column_name].interpolate(
-        method="time", **interpolation_kwargs
+    new_df[output_column_name] = (
+        new_df[data_column_name]
+        .astype(float)
+        .interpolate(method="time", **interpolation_kwargs)
     )
     return new_df

@@ -23,6 +23,7 @@ redis_conn = redis.Redis(
         10,
     ),
     retry_on_timeout=True,
+    decode_responses=True,
 )
 
 sqlalchemy_pg_url = sqlalchemy.URL(
@@ -52,16 +53,16 @@ def check_for_new_lme_overnight_files(timer: func.TimerRequest):
     nightly_funcs.update_currency_interest_curves_from_lme(
         redis_conn, pg_engine, first_run=True
     )
-    logging.info("Updating FCP data")
-    nightly_funcs.update_future_closing_prices_from_lme(
-        redis_conn, pg_engine, first_run=True
-    )
-    logging.info("Updating CLO data")
-    nightly_funcs.update_option_closing_prices_from_lme(
-        redis_conn, pg_engine, first_run=True
-    )
-    logging.info("Updating EXR data")
-    nightly_funcs.update_exchange_rate_curves_from_lme(redis_conn, pg_engine)
+    # logging.info("Updating FCP data")
+    # nightly_funcs.update_future_closing_prices_from_lme(
+    #     redis_conn, pg_engine, first_run=True
+    # )
+    # logging.info("Updating CLO data")
+    # nightly_funcs.update_option_closing_prices_from_lme(
+    #     redis_conn, pg_engine, first_run=True
+    # )
+    # logging.info("Updating EXR data")
+    # nightly_funcs.update_exchange_rate_curves_from_lme(redis_conn, pg_engine)
 
 
 # @app.function_name(name="lme_date_data_updater")
