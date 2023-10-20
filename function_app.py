@@ -65,15 +65,15 @@ def check_for_new_lme_overnight_files(timer: func.TimerRequest):
     # nightly_funcs.update_exchange_rate_curves_from_lme(redis_conn, pg_engine)
 
 
-# @app.function_name(name="lme_date_data_updater")
-# @app.schedule(
-#     schedule="32 1 2 * * MON-FRI",
-#     arg_name="timer",
-#     use_monitor=True,
-# )
-# def update_lme_date_data(timer: func.TimerRequest):
-#     logging.info("Starting LME static data update job")
-#     nightly_funcs.update_lme_relative_forward_dates(
-#         redis_conn, pg_engine, first_run=True
-#     )
-#     logging.info("Completed LME static data update")
+@app.function_name(name="lme_date_data_updater")
+@app.schedule(
+    schedule="32 1 2 * * MON-FRI",
+    arg_name="timer",
+    use_monitor=True,
+)
+def update_lme_date_data(timer: func.TimerRequest):
+    logging.info("Starting LME static data update job")
+    nightly_funcs.update_lme_relative_forward_dates(
+        redis_conn, pg_engine, first_run=True
+    )
+    logging.info("Completed LME static data update")

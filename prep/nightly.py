@@ -231,7 +231,6 @@ def update_currency_interest_curves_from_lme(
                     "interp_cont_rate",
                 )
             )
-            # logging.info(interped_interest_rate_df)
             for interest_rate_row_data in interped_interest_rate_df.itertuples():
                 rate_data["legacy"][
                     interest_rate_row_data.Index.strftime(r"%Y%m%d")
