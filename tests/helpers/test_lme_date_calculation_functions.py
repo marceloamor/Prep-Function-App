@@ -128,7 +128,7 @@ def test_lme_prompt_map_has_no_circular_mappings(test_base_datetime):
 )
 def test_lme_prompt_map_has_no_indirect_mappings(test_base_datetime):
     lme_prompt_map = lme_date_calc_funcs.get_lme_prompt_map(
-        LME_2023_THROUGH_2025_NON_PROMPTS, _current_date=test_base_datetime
+        LME_2023_THROUGH_2025_NON_PROMPTS, _current_datetime=test_base_datetime
     )
 
     # I can't think of a more elegant way to do this so brute force it is
@@ -177,7 +177,7 @@ def test_lme_prompt_map_has_no_indirect_mappings(test_base_datetime):
 )
 def test_get_3m_date(base_datetime, expected_3m_date):
     lme_prompt_map = lme_date_calc_funcs.get_lme_prompt_map(
-        LME_2023_THROUGH_2025_NON_PROMPTS, _current_date=base_datetime
+        LME_2023_THROUGH_2025_NON_PROMPTS, _current_datetime=base_datetime
     )
     calculated_3m_date = lme_date_calc_funcs.get_3m_datetime(
         base_datetime, lme_prompt_map
@@ -372,7 +372,7 @@ def test_get_all_valid_monthly_prompts(base_datetime: datetime, months_forward: 
 )
 def test_get_all_valid_weekly_prompts(base_datetime: datetime):
     lme_prompt_map = lme_date_calc_funcs.get_lme_prompt_map(
-        LME_2023_THROUGH_2025_NON_PROMPTS, _current_date=base_datetime
+        LME_2023_THROUGH_2025_NON_PROMPTS, _current_datetime=base_datetime
     )
     weekly_prompts = lme_date_calc_funcs.get_all_valid_weekly_prompts(
         base_datetime, lme_prompt_map

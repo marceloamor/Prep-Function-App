@@ -59,7 +59,10 @@ LME_FCP_PRODUCT_TO_REDIS_KEY = {
 
 
 def update_lme_relative_forward_dates(
-    redis_conn: redis.Redis, engine: sqlalchemy.Engine, first_run=False
+    redis_conn: redis.Redis,
+    engine: sqlalchemy.Engine,
+    first_run=False,
+    placeholder_dt=None,
 ):
     now_london_datetime = datetime.now(
         tz=ZoneInfo("Europe/London")
@@ -77,7 +80,10 @@ def update_lme_relative_forward_dates(
         for lme_product in lme_exchange.products:
             lme_futures_curve_data = (
                 lme_staticdata_utils.update_lme_product_static_data(
-                    lme_product, session, first_run=first_run
+                    lme_product,
+                    session,
+                    first_run=first_run,
+                    placeholder_dt=placeholder_dt,
                 )
             )
             if (
@@ -148,7 +154,7 @@ def update_lme_relative_forward_dates(
 def update_exchange_rate_curves_from_lme(
     redis_conn: redis.Redis, engine: sqlalchemy.Engine
 ):
-    lme_last_exr_dt_ymd = redis_conn.get(LME_EXR_RECENCY_KEY)
+    lme_last_exr_dt_ymd = redis_conn.get(LME_EXR_RECENCY_KEY + redis_dev_key_append)
     if lme_last_exr_dt_ymd is None:
         files_to_fetch = -1
     else:
@@ -288,7 +294,7 @@ def update_future_closing_prices_from_lme(
         ]
         most_recent_file_df.loc[:, "prompt_date"] = most_recent_file_df.loc[
             :, "forward_date"
-        ].apply(lambda forward_date: datetime.strptime(str(forward_date), r"%Y%m%d"))
+        ]  # .apply(lambda forward_date: datetime.strptime(str(forward_date), r"%Y%m%d"))
 
         redis_pipeline = redis_conn.pipeline()
         for underlying_no_curr, redis_key in LME_FCP_PRODUCT_TO_REDIS_KEY.items():
@@ -307,8 +313,8 @@ def update_future_closing_prices_from_lme(
             underlying_close_data = {}  # date: interpolated_price
             for row in interpolated_product_curve_df.itertuples():
                 underlying_close_data[
-                    row.index.strftime(r"%Y%m%d")
-                ] = row.interpolated_price
+                    row.Index.to_pydatetime().strftime(r"%Y%m%d")
+                ] = round(row.interpolated_price, 2)
             redis_pipeline.set(
                 redis_key + redis_dev_key_append, ujson.dumps(underlying_close_data)
             )

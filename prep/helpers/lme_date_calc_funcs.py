@@ -23,7 +23,7 @@ def get_good_friday_date(year: int) -> date:
 
 
 def get_lme_prompt_map(
-    non_prompts: List[date], _current_date=datetime.today()
+    non_prompts: List[date], _current_datetime=None
 ) -> Dict[date, date]:
     """Using a list of non-prompt dates and the LME rulebook, generates
     a mapping between dates and corresponding valid prompts that they will
@@ -40,7 +40,10 @@ def get_lme_prompt_map(
     :rtype: Dict[date, date]
     """
     prompt_map: Dict[date, date] = {}
-    now_dt = _current_date
+    if not isinstance(_current_datetime, datetime):
+        now_dt = datetime.now(tz=ZoneInfo("Europe/London"))
+    else:
+        now_dt = _current_datetime
     offset_1d = relativedelta.relativedelta(days=1)
 
     next_good_friday_date = get_good_friday_date(now_dt.year)
