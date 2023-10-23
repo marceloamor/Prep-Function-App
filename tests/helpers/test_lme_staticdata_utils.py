@@ -331,7 +331,7 @@ def test_pull_lme_exchange_rates_ideal_data(
         new=get_mock_paramiko_client,
     )
 
-    currencies = {"USD", "EUR", "GBP", "JPY"}
+    currencies = {"usd", "eur", "gbp", "jpy"}
     (
         latest_dt,
         exchange_rates,

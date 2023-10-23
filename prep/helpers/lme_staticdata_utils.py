@@ -60,6 +60,7 @@ LME_PRODUCT_NAME_MAP = {
     lme_product_name[0:2]: lme_metal_name
     for lme_product_name, lme_metal_name in zip(LME_PRODUCT_NAMES, LME_METAL_NAMES)
 }
+_DEFAULT_FORWARD_MONTHS = 18
 
 
 @dataclass
@@ -262,7 +263,7 @@ def gen_lme_options(
 def populate_primary_curve_datetimes(
     non_prompts: List[date],
     product_holidays: List[Holiday],
-    forward_months=18,
+    forward_months=_DEFAULT_FORWARD_MONTHS,
     _current_datetime=None,
 ) -> LMEFuturesCurve:
     """Generates and populates a container dataclass with the primary
@@ -286,7 +287,9 @@ def populate_primary_curve_datetimes(
     """
     if not isinstance(_current_datetime, datetime):
         _current_datetime = datetime.now(tz=ZoneInfo("Europe/London"))
-    lme_prompt_map = lme_date_calc_funcs.get_lme_prompt_map(non_prompts)
+    lme_prompt_map = lme_date_calc_funcs.get_lme_prompt_map(
+        non_prompts, _current_datetime=_current_datetime
+    )
     lme_3m_datetime = lme_date_calc_funcs.get_3m_datetime(
         _current_datetime, lme_prompt_map
     )
@@ -318,7 +321,7 @@ def generate_and_populate_futures_curve(
     session: Optional[sqlalchemy.orm.Session] = None,
     populate_options=True,
     populate_broken_dates=False,
-    forward_months=18,
+    forward_months=_DEFAULT_FORWARD_MONTHS,
     _current_datetime=lambda: datetime.now(tz=ZoneInfo("Europe/London")),
 ) -> Tuple[LMEFuturesCurve, List[Future], List[Option]]:
     """Generates the futures and options (if `populate_options` is `True`) across the
@@ -391,17 +394,31 @@ def update_lme_product_static_data(
     lme_product: Product,
     sqla_session: sqlalchemy.orm.Session,
     first_run=False,
+    placeholder_dt=None,
 ) -> LMEFuturesCurve:
-    (
-        lme_futures_curve,
-        futures,
-        options,
-    ) = generate_and_populate_futures_curve(
-        lme_product,
-        lme_product.holidays,
-        populate_broken_dates=first_run,
-        session=sqla_session,
-    )
+    if not isinstance(placeholder_dt, datetime):
+        (
+            lme_futures_curve,
+            futures,
+            options,
+        ) = generate_and_populate_futures_curve(
+            lme_product,
+            lme_product.holidays,
+            populate_broken_dates=first_run,
+            session=sqla_session,
+        )
+    else:
+        (
+            lme_futures_curve,
+            futures,
+            options,
+        ) = generate_and_populate_futures_curve(
+            lme_product,
+            lme_product.holidays,
+            populate_broken_dates=first_run,
+            session=sqla_session,
+            _current_datetime=placeholder_dt,
+        )
     # sqla_session.add_all(futures)
     # sqla_session.add_all(options)
 
@@ -412,6 +429,7 @@ def pull_lme_exchange_rates(
     currency_symbols_iso_unpaired: Set[str],
     num_data_dates_to_pull: Union[int, datetime],
 ) -> Tuple[datetime, List[ExchangeRate]]:
+    current_dt = datetime.now(tz=ZoneInfo("Europe/London")).replace(hour=19)
     exchange_rate_datetimes, exchange_rate_dfs = rjo_sftp_utils.get_lme_overnight_data(
         "EXR",
         num_recent_or_since_dt=num_data_dates_to_pull,
@@ -442,13 +460,20 @@ def pull_lme_exchange_rates(
                 )
             )
         ]
-        for row in fx_rate_df_filtered.itertuples(index=False):
+        for row in fx_rate_df_filtered.loc[
+            fx_rate_df_filtered["forward_date"].between(
+                np.datetime64(fx_rate_dt, "ns"),
+                np.datetime64(
+                    current_dt + relativedelta(months=_DEFAULT_FORWARD_MONTHS - 1), "ns"
+                ),
+            )
+        ].itertuples(index=False):
             bulk_exchange_rates.append(
                 ExchangeRate(
                     published_date=fx_rate_dt.date(),
                     source="LME",
-                    base_currency_symbol=row.base_currency,
-                    quote_currency_symbol=row.quote_currency,
+                    base_currency_symbol=row.base_currency.lower(),
+                    quote_currency_symbol=row.quote_currency.lower(),
                     forward_date=row.forward_date,
                     rate=row.exchange_rate,
                 )
@@ -466,7 +491,12 @@ def update_lme_exchange_rate_data(
     df_dt, exchange_rates = pull_lme_exchange_rates(
         currencies_to_pull_iso_symbols, num_data_dates_to_pull=most_recent_datetime
     )
-    sqla_session.add_all(exchange_rates)
+    exr_list_of_dicts: List[Dict[str, Any]] = []
+    for exr_obj in exchange_rates:
+        exr_list_of_dicts.append(exr_obj.to_dict())
+    if len(exr_list_of_dicts) > 0:
+        stmt = pg_insert(ExchangeRate).on_conflict_do_nothing()
+        sqla_session.execute(stmt, exr_list_of_dicts)
 
     return df_dt
 
@@ -478,6 +508,7 @@ def pull_lme_interest_rate_curve(
     # pandas is cancer and needs to be scorched from this Earth, it's a terrible library
     # with no place in modern software engineering, they can't even do bloody warnings properly
     pd.options.mode.chained_assignment = None
+    current_dt = datetime.now(tz=ZoneInfo("Europe/London")).replace(hour=19)
     try:
         (
             interest_rate_datetimes,
@@ -501,12 +532,20 @@ def pull_lme_interest_rate_curve(
                 rate_dataframe["currency"].str.upper().isin(valid_currencies_iso)
             ]
             rate_dataframe.loc[:, "continuous_rate"] = np.log(
-                1.0 + rate_dataframe.interest_rate
+                1.0 + rate_dataframe.loc[:, "interest_rate"]
             )
             if rate_datetime == interest_rate_datetimes[0]:
                 for currency_iso in rate_dataframe.currency.unique():
                     most_recent_updated_currencies.add(currency_iso)
-            for row in rate_dataframe.itertuples(index=False):
+            for row in rate_dataframe.loc[
+                rate_dataframe["forward_date"].between(
+                    np.datetime64(rate_datetime, "ns"),
+                    np.datetime64(
+                        current_dt + relativedelta(months=_DEFAULT_FORWARD_MONTHS - 1),
+                        "ns",
+                    ),
+                )
+            ].itertuples(index=False):
                 bulk_interest_rate_data.append(
                     InterestRate(
                         published_date=row.report_date,
@@ -554,16 +593,19 @@ def update_lme_interest_rate_static_data(
 def pull_lme_options_closing_price_data(
     num_data_dates_to_pull: Union[int, datetime],
 ) -> Tuple[datetime, pd.DataFrame, List[OptionClosingPrice]]:
+    current_dt = datetime.now(tz=ZoneInfo("Europe/London")).replace(hour=19)
     closing_price_datetimes, closing_price_dfs = rjo_sftp_utils.get_lme_overnight_data(
         "CLO",
         num_recent_or_since_dt=num_data_dates_to_pull,
-        date_cols_to_parse=["REPORT_DATE"],
+        date_cols_to_parse=["REPORT_DATE", "FORWARD_DATE"],
     )
     if len(closing_price_datetimes) == 0:
         return (datetime(1970, 1, 1), pd.DataFrame(), [])
 
     bulk_closing_prices: List[OptionClosingPrice] = []
-    for closing_price_df in closing_price_dfs:
+    for closing_price_dt, closing_price_df in zip(
+        closing_price_datetimes, closing_price_dfs
+    ):
         # filters for just those within the contracts we trade that are option
         # closing prices
         closing_price_df = closing_price_df[
@@ -575,13 +617,21 @@ def pull_lme_options_closing_price_data(
         closing_price_df.loc[:, "expiry_date"] = closing_price_df.loc[
             :, "forward_month"
         ].apply(
-            lambda yyyy_mm_int: (
+            lambda yyyy_mm_int: np.datetime64(
                 datetime.strptime(f"{str(int(yyyy_mm_int))}01", r"%Y%m%d")
-                + relativedelta(weekday=WE(1))
-            ).date()
+                + relativedelta(weekday=WE(1)),
+                "ns",
+            )
         )
         pd.options.mode.chained_assignment = "warn"
-        for row in closing_price_df.itertuples(index=False):
+        for row in closing_price_df.loc[
+            closing_price_df["expiry_date"].between(
+                np.datetime64(closing_price_dt, "ns"),
+                np.datetime64(
+                    current_dt + relativedelta(months=_DEFAULT_FORWARD_MONTHS - 1), "ns"
+                ),
+            )
+        ].itertuples(index=False):
             option_internal_identifier = LME_PRODUCT_IDENTIFIER_MAP[
                 row.contract.upper()
             ]
@@ -598,6 +648,7 @@ def pull_lme_options_closing_price_data(
                     close_delta=row.delta,
                 )
             )
+    logging.info("Found %s option closing prices", len(bulk_closing_prices))
 
     return closing_price_datetimes[0], closing_price_dfs[0], bulk_closing_prices
 
@@ -605,10 +656,11 @@ def pull_lme_options_closing_price_data(
 def pull_lme_futures_closing_price_data(
     num_data_dates_to_pull: Union[int, datetime],
 ) -> Tuple[datetime, pd.DataFrame, List[FutureClosingPrice]]:
+    current_dt = datetime.now(tz=ZoneInfo("Europe/London")).replace(hour=19)
     closing_price_datetimes, closing_price_dfs = rjo_sftp_utils.get_lme_overnight_data(
         "FCP",
         num_recent_or_since_dt=num_data_dates_to_pull,
-        # date_cols_to_parse=["REPORT_DATE", "FORWARD_DATE"],
+        date_cols_to_parse=["REPORT_DATE", "FORWARD_DATE"],
     )
     if len(closing_price_datetimes) == 0:
         return datetime(1970, 1, 1), pd.DataFrame(), []
@@ -620,7 +672,14 @@ def pull_lme_futures_closing_price_data(
             (closing_price_df["currency"].str.upper() == "USD")
             & (closing_price_df["price_type"].str.upper() == "FC")
         ]
-        for row in closing_price_df.itertuples(index=False):
+        for row in closing_price_df.loc[
+            closing_price_df["forward_date"].between(
+                np.datetime64(closing_price_datetime, "ns"),
+                np.datetime64(
+                    current_dt + relativedelta(months=_DEFAULT_FORWARD_MONTHS - 1), "ns"
+                ),
+            )
+        ].itertuples(index=False):
             try:
                 future_internal_ident = LME_PRODUCT_IDENTIFIER_MAP[
                     f"{row.underlying}D"
@@ -631,9 +690,7 @@ def pull_lme_futures_closing_price_data(
                     row.underlying,
                 )
                 continue
-            future_exp_str = datetime.strptime(
-                str(row.forward_date), r"%Y%m%d"
-            ).strftime(r"%y-%m-%d")
+            future_exp_str = row.forward_date.strftime(r"%y-%m-%d")
             bulk_closing_prices.append(
                 FutureClosingPrice(
                     close_date=closing_price_datetime.date(),
@@ -654,7 +711,13 @@ def update_lme_futures_closing_price_data(
         most_recent_df,
         future_closing_prices,
     ) = pull_lme_futures_closing_price_data(num_data_dates_to_pull=most_recent_datetime)
-    sqla_session.add_all(future_closing_prices)
+    fcp_list_of_dicts: List[Dict[str, Any]] = []
+    for fcp_obj in future_closing_prices:
+        fcp_list_of_dicts.append(fcp_obj.to_dict())
+    if len(fcp_list_of_dicts) > 0:
+        stmt = pg_insert(FutureClosingPrice).on_conflict_do_nothing()
+        sqla_session.execute(stmt, fcp_list_of_dicts)
+
     return most_recent_dt, most_recent_df
 
 
@@ -667,5 +730,11 @@ def update_lme_options_closing_price_data(
         most_recent_df,
         option_closing_prices,
     ) = pull_lme_options_closing_price_data(num_data_dates_to_pull=most_recent_datetime)
-    sqla_session.add_all(option_closing_prices)
+    clo_list_of_dicts: List[Dict[str, Any]] = []
+    for clo_obj in option_closing_prices:
+        clo_list_of_dicts.append(clo_obj.to_dict())
+    if len(clo_list_of_dicts) > 0:
+        stmt = pg_insert(OptionClosingPrice).on_conflict_do_nothing()
+        sqla_session.execute(stmt, clo_list_of_dicts)
+
     return most_recent_dt, most_recent_df
