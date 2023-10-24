@@ -180,7 +180,7 @@ def update_exchange_rate_curves_from_lme(
 
 def update_currency_interest_curves_from_lme(
     redis_conn: redis.Redis, engine: sqlalchemy.Engine, first_run=False
-):
+) -> bool:
     rate_curve_data = {
         currency_iso_sym: {"legacy": {}, "new": {}}
         for currency_iso_sym in list(UPDATED_CURRENCY_TO_KEY.keys())
@@ -265,10 +265,12 @@ def update_currency_interest_curves_from_lme(
     redis_pipeline.set(LME_INR_RECENCY_KEY + redis_dev_key_append, most_recent_dt_Ymd)
     redis_pipeline.execute()
 
+    return most_recent_file == most_recent_dt_Ymd
+
 
 def update_future_closing_prices_from_lme(
     redis_conn: redis.Redis, engine: sqlalchemy.Engine, first_run=False
-):
+) -> bool:
     num_to_pull_or_dt = -1 if first_run else 1
     most_recent_file = redis_conn.get(LME_FCP_RECENCY_KEY + redis_dev_key_append)
     if most_recent_file is not None:
@@ -286,7 +288,7 @@ def update_future_closing_prices_from_lme(
             session, most_recent_datetime=num_to_pull_or_dt
         )
         if most_recent_file_dt == datetime(1970, 1, 1):
-            return
+            return False
         session.commit()
         most_recent_file_df = most_recent_file_df[
             (most_recent_file_df["currency"] == "USD")
@@ -323,6 +325,8 @@ def update_future_closing_prices_from_lme(
             most_recent_file_dt.strftime(r"%Y%m%d"),
         )
         redis_pipeline.execute()
+
+        return most_recent_file == most_recent_file_dt.strftime(r"%Y%m%d")
 
 
 def update_option_closing_prices_from_lme(
