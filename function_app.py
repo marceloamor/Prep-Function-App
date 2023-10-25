@@ -53,7 +53,7 @@ pg_engine = sqlalchemy.create_engine(sqlalchemy_pg_url, echo=False)
 
 
 @app.function_name(name="rjo_sftp_update_inr_data")
-@app.schedule(schedule="15 4/30 21-10 * * MON-FRI", arg_name="timer")
+@app.schedule(schedule="15 4/30 21-23,0-10 * * MON-FRI", arg_name="timer")
 def update_inr_data(timer: func.TimerRequest):
     logging.info("Updating INR data")
     inr_updated = nightly_funcs.update_currency_interest_curves_from_lme(
@@ -65,7 +65,7 @@ def update_inr_data(timer: func.TimerRequest):
 
 
 @app.function_name(name="rjo_sftp_update_fcp_data")
-@app.schedule(schedule="15 5/30 21-10 * * MON-FRI", arg_name="timer")
+@app.schedule(schedule="15 5/30 21-23,0-10 * * MON-FRI", arg_name="timer")
 def update_fcp_data(timer: func.TimerRequest):
     logging.info("Updating FCP data")
     fcp_updated = nightly_funcs.update_future_closing_prices_from_lme(
@@ -76,7 +76,7 @@ def update_fcp_data(timer: func.TimerRequest):
 
 
 @app.function_name(name="rjo_sftp_update_clo_data")
-@app.schedule(schedule="15 6/30 21-10 * * MON-FRI", arg_name="timer")
+@app.schedule(schedule="15 6/30 21-23,0-10 * * MON-FRI", arg_name="timer")
 def update_clo_data(timer: func.TimerRequest):
     logging.info("Updating CLO data")
     nightly_funcs.update_option_closing_prices_from_lme(
@@ -85,7 +85,7 @@ def update_clo_data(timer: func.TimerRequest):
 
 
 @app.function_name(name="rjo_sftp_update_exr_data")
-@app.schedule(schedule="15 7/30 21-10 * * MON-FRI", arg_name="timer")
+@app.schedule(schedule="15 7/30 21-23,0-10 * * MON-FRI", arg_name="timer")
 def update_exr_data(timer: func.TimerRequest):
     logging.info("Updating EXR data")
     nightly_funcs.update_exchange_rate_curves_from_lme(redis_conn, pg_engine)
