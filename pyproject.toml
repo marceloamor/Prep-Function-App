@@ -6,6 +6,7 @@ authors = ["fwf-upetrading <frederick.fillingham@upetrading.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
+pandas = {extras = ["performance"], version = "^2.1.1"}
 python = ">=3.10,<3.13"
 sqlalchemy = "^2.0.19"
 psycopg = {extras = ["binary"], version = "^3.1.9"}
@@ -17,7 +18,6 @@ upedata = {path = "dependencies/upedata-0.5.1-py3-none-any.whl"}
 requests = "^2.31.0"
 ujson = "^5.8.0"
 paramiko = "^3.3.1"
-pandas = "^2.1.1"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.7.0"
