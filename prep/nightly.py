@@ -1,22 +1,19 @@
-from prep.helpers import lme_staticdata_utils, time_series_interpolation
-from prep.exceptions import ProductNotFound
-from prep import handy_dandy_variables
-
-from upedata.static_data import Exchange, Currency
-from upedata.dynamic_data import InterestRate
-
-from dateutil import relativedelta
-import sqlalchemy.orm
-import pandas as pd
-import sqlalchemy
-import redis
-import ujson
-
-from datetime import datetime
-from zoneinfo import ZoneInfo
 import logging
 import os
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
+import pandas as pd
+import redis
+import sqlalchemy
+import sqlalchemy.orm
+import ujson
+from dateutil import relativedelta
+from upedata.static_data import Currency, Exchange
+
+from prep import handy_dandy_variables
+from prep.exceptions import ProductNotFound
+from prep.helpers import lme_staticdata_utils, time_series_interpolation
 
 redis_dev_key_append = handy_dandy_variables.redis_key_append
 
@@ -252,6 +249,10 @@ def update_currency_interest_curves_from_lme(
         redis_pipeline.set(
             f"{updated_currency_iso.upper()}Rate{redis_dev_key_append}",
             ujson.dumps(rate_curve_data[updated_currency_iso.upper()]["legacy"]),
+        )
+        redis_pipeline.set(
+            f"prep:cont_interest_rate:{updated_currency_iso.lower()}{redis_dev_key_append}",
+            ujson.dumps(rate_curve_data[updated_currency_iso.upper()]["new"]),
         )
         redis_pipeline.set(
             UPDATED_CURRENCY_TO_KEY[updated_currency_iso.upper()]
