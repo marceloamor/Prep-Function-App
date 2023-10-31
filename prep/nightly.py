@@ -151,12 +151,12 @@ def update_lme_relative_forward_dates(
 def update_exchange_rate_curves_from_lme(
     redis_conn: redis.Redis, engine: sqlalchemy.Engine
 ):
-    lme_last_exr_dt_ymd = redis_conn.get(LME_EXR_RECENCY_KEY + redis_dev_key_append)
-    if lme_last_exr_dt_ymd is None:
+    lme_last_exr_dt_iso = redis_conn.get(LME_EXR_RECENCY_KEY + redis_dev_key_append)
+    if lme_last_exr_dt_iso is None:
         files_to_fetch = -1
     else:
-        files_to_fetch = datetime.strptime(
-            lme_last_exr_dt_ymd, r"%Y%m%d"
+        files_to_fetch = datetime.fromisoformat(
+            lme_last_exr_dt_iso
         ) + relativedelta.relativedelta(days=1)
     with sqlalchemy.orm.Session(engine) as session:
         currency_iso_symbols = (
@@ -167,10 +167,12 @@ def update_exchange_rate_curves_from_lme(
         )
         session.commit()
     pipeline = redis_conn.pipeline()
-    most_recent_datetime_str = most_recent_datetime.strftime(r"%Y%m%d")
-    pipeline.set(LME_EXR_RECENCY_KEY + redis_dev_key_append, most_recent_datetime_str)
     pipeline.set(
-        LEGACY_LME_EXR_RECENCY_KEY + redis_dev_key_append, most_recent_datetime_str
+        LME_EXR_RECENCY_KEY + redis_dev_key_append, most_recent_datetime.isoformat()
+    )
+    pipeline.set(
+        LEGACY_LME_EXR_RECENCY_KEY + redis_dev_key_append,
+        most_recent_datetime.strftime(r"%Y%m%d"),
     )
     pipeline.execute()
 
@@ -187,8 +189,8 @@ def update_currency_interest_curves_from_lme(
     most_recent_file = redis_conn.get(LME_INR_RECENCY_KEY + redis_dev_key_append)
     if most_recent_file is not None:
         try:
-            num_to_pull_or_dt = datetime.strptime(
-                most_recent_file, r"%Y%m%d"
+            num_to_pull_or_dt = datetime.fromisoformat(
+                most_recent_file
             ) + relativedelta.relativedelta(days=1)
         except ValueError:
             pass
@@ -245,6 +247,7 @@ def update_currency_interest_curves_from_lme(
 
     redis_pipeline = redis_conn.pipeline()
     most_recent_dt_Ymd = most_recent_rate_datetime.strftime(r"%Y%m%d")
+    most_recent_dt_iso = most_recent_rate_datetime.isoformat()
     for updated_currency_iso in updated_currencies:
         redis_pipeline.set(
             f"{updated_currency_iso.upper()}Rate{redis_dev_key_append}",
@@ -257,16 +260,16 @@ def update_currency_interest_curves_from_lme(
         redis_pipeline.set(
             UPDATED_CURRENCY_TO_KEY[updated_currency_iso.upper()]
             + redis_dev_key_append,
-            most_recent_dt_Ymd,
+            most_recent_dt_iso,
         )
         logging.info("Updated `INR` data for %s", updated_currency_iso.upper())
     redis_pipeline.set(
         LEGACY_LME_INR_RECENCY_KEY + redis_dev_key_append, most_recent_dt_Ymd
     )
-    redis_pipeline.set(LME_INR_RECENCY_KEY + redis_dev_key_append, most_recent_dt_Ymd)
+    redis_pipeline.set(LME_INR_RECENCY_KEY + redis_dev_key_append, most_recent_dt_iso)
     redis_pipeline.execute()
 
-    return most_recent_file == most_recent_dt_Ymd
+    return most_recent_file == most_recent_dt_iso
 
 
 def update_future_closing_prices_from_lme(
@@ -276,8 +279,8 @@ def update_future_closing_prices_from_lme(
     most_recent_file = redis_conn.get(LME_FCP_RECENCY_KEY + redis_dev_key_append)
     if most_recent_file is not None:
         try:
-            num_to_pull_or_dt = datetime.strptime(
-                most_recent_file, r"%Y%m%d"
+            num_to_pull_or_dt = datetime.fromisoformat(
+                most_recent_file
             ) + relativedelta.relativedelta(days=1)
         except ValueError:
             pass
@@ -323,11 +326,11 @@ def update_future_closing_prices_from_lme(
             )
         redis_pipeline.set(
             LME_FCP_RECENCY_KEY + redis_dev_key_append,
-            most_recent_file_dt.strftime(r"%Y%m%d"),
+            most_recent_file_dt.isoformat(),
         )
         redis_pipeline.execute()
 
-        return most_recent_file == most_recent_file_dt.strftime(r"%Y%m%d")
+        return most_recent_file == most_recent_file_dt.isoformat()
 
 
 def update_option_closing_prices_from_lme(
@@ -337,8 +340,8 @@ def update_option_closing_prices_from_lme(
     most_recent_file = redis_conn.get(LME_CLO_RECENCY_KEY + redis_dev_key_append)
     if most_recent_file is not None:
         try:
-            num_to_pull_or_dt = datetime.strptime(
-                most_recent_file, r"%Y%m%d"
+            num_to_pull_or_dt = datetime.fromisoformat(
+                most_recent_file
             ) + relativedelta.relativedelta(days=1)
         except ValueError:
             pass
@@ -355,9 +358,10 @@ def update_option_closing_prices_from_lme(
         # currently we don't do anything with the options closing price data
         # in redis or database, just leaving it there for historical reasons.
         clo_file_date_str = most_recent_file_dt.strftime(r"%Y%m%d")
+        most_recent_dt_iso = most_recent_file_dt.isoformat()
         pipeline = redis_conn.pipeline()
         pipeline.set(
             LEGACY_LME_CLO_RECENCY_KEY + redis_dev_key_append, clo_file_date_str
         )
-        pipeline.set(LME_CLO_RECENCY_KEY + redis_dev_key_append, clo_file_date_str)
+        pipeline.set(LME_CLO_RECENCY_KEY + redis_dev_key_append, most_recent_dt_iso)
         pipeline.execute()

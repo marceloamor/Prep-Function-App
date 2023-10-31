@@ -1,5 +1,6 @@
 from upedata.static_data import Option, Exchange
 import prep.nightly as nightly_funcs
+from prep import handy_dandy_variables
 
 from redis.backoff import ExponentialBackoff
 import azure.functions as func
@@ -18,7 +19,10 @@ import os
 
 app = func.FunctionApp()
 
-REDIS_COMPUTE_CHANNEL = os.getenv("REDIS_COMPUTE_CHANNEL", "v2:compute")
+REDIS_COMPUTE_CHANNEL = (
+    os.getenv("REDIS_COMPUTE_CHANNEL", "v2:compute")
+    + handy_dandy_variables.redis_key_append
+)
 
 redis_conn = redis.Redis(
     host=os.getenv("REDIS_HOST"),  # type: ignore
@@ -122,19 +126,12 @@ def send_static_data_update_for_product_ids(
     :type options_to_update: List[Option]
     """
     pipeline = redis_conn.pipeline()
-    # i know the channel_key + ... is duplicated and done several times, but when sanity
-    # checking to make sure this separation system works patterns are used to make sure
-    # keys have this included on publish and set
     redis_conn.publish(
-        channel_key + nightly_funcs.redis_dev_key_append,
-        json.dumps([options_to_update[0].symbol, "staticdata"]),
+        channel_key, json.dumps([options_to_update[0].symbol, "staticdata"])
     )
     if len(options_to_update) > 1:
         for option_obj in options_to_update[1:]:
-            pipeline.publish(
-                channel_key + nightly_funcs.redis_dev_key_append,
-                json.dumps([option_obj.symbol, "update"]),
-            )
+            pipeline.publish(channel_key, json.dumps([option_obj.symbol, "update"]))
 
     pipeline.execute()
     logging.info(
