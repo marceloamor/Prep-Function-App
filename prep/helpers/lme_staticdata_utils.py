@@ -1,37 +1,35 @@
-from prep.helpers import lme_date_calc_funcs, rjo_sftp_utils
-from prep.exceptions import ProductNotFound
+import json
+import logging
+from dataclasses import dataclass, field
+from datetime import date, datetime, time
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from zoneinfo import ZoneInfo
 
-from upedata.static_data import (
-    FuturePriceFeedAssociation,
-    PriceFeed,
-    Product,
-    Holiday,
-    Future,
-    Option,
-)
+import numpy as np
+import pandas as pd
+import sqlalchemy.orm
+import upedata.enums as upe_enums
+from dateutil.relativedelta import WE, relativedelta
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from upedata.dynamic_data import (
-    FutureClosingPrice,
-    OptionClosingPrice,
     ExchangeRate,
+    FutureClosingPrice,
     InterestRate,
+    OptionClosingPrice,
     VolSurface,
 )
+from upedata.static_data import (
+    Future,
+    FuturePriceFeedAssociation,
+    Holiday,
+    Option,
+    PriceFeed,
+    Product,
+)
 from upedata.template_language import parser
-import upedata.enums as upe_enums
 
-from sqlalchemy.dialects.postgresql import insert as pg_insert
-from dateutil.relativedelta import relativedelta, WE
-import sqlalchemy.orm
-import pandas as pd
-import numpy as np
-
-from typing import List, Dict, Tuple, Optional, Set, Union, Any
-from datetime import datetime, date, time
-from dataclasses import dataclass, field
-from zoneinfo import ZoneInfo
-import logging
-import json
-
+from prep.exceptions import ProductNotFound
+from prep.helpers import lme_date_calc_funcs, rjo_sftp_utils
 
 LME_PRODUCT_NAMES = ["AHD", "CAD", "PBD", "ZSD", "NID"]
 LME_METAL_NAMES = ["aluminium", "copper", "lead", "zinc", "nickel"]
@@ -184,6 +182,12 @@ def gen_lme_futures(
                 expiry=expiry_date,
                 multiplier=LME_FUTURE_MULTIPLIERS[product.short_name],
                 product=product,
+                settlement={
+                    "form": "physical",
+                    "time": ["expiry", 0],
+                    "style": "forward",
+                    "version": "1.0",
+                },
             )
             new_lme_future.underlying_feeds = [
                 product_3m_future_price_feed_assoc,
