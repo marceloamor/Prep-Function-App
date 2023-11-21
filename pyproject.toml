@@ -14,7 +14,7 @@ sqlalchemy-json = "^0.6.0"
 redis = {extras = ["hiredis"], version = "^4.6.0"}
 azure-functions = "^1.15.0"
 python-dateutil = "^2.8.2"
-upedata = {path = "dependencies/upedata-0.5.2-py3-none-any.whl"}
+upedata = {path = "dependencies/upedata-0.5.3-py3-none-any.whl"}
 requests = "^2.31.0"
 ujson = "^5.8.0"
 paramiko = "^3.3.1"
