@@ -1,21 +1,18 @@
-from upedata.static_data import Option, Exchange
+import json
+import logging
+import os
+from typing import List
+
+import azure.functions as func
+import redis
+import sqlalchemy
+import sqlalchemy.orm
+from redis.backoff import ExponentialBackoff
+from redis.retry import Retry
+from upedata.static_data import Exchange, Option
+
 import prep.nightly as nightly_funcs
 from prep import handy_dandy_variables
-
-from redis.backoff import ExponentialBackoff
-import azure.functions as func
-from redis.retry import Retry
-import sqlalchemy.orm
-import sqlalchemy
-import redis
-
-from datetime import datetime
-from zoneinfo import ZoneInfo
-from typing import List
-import logging
-import json
-import os
-
 
 app = func.FunctionApp()
 
@@ -125,15 +122,13 @@ def send_static_data_update_for_product_ids(
     information.
     :type options_to_update: List[Option]
     """
-    pipeline = redis_conn.pipeline()
+    product_symbols = set()
+    for option_obj in options_to_update:
+        product_symbols.add(option_obj.product_symbol)
     redis_conn.publish(
-        channel_key, json.dumps([options_to_update[0].symbol, "staticdata"])
+        REDIS_COMPUTE_CHANNEL,
+        json.dumps({"type": "staticdata", "product_symbols": list(product_symbols)}),
     )
-    if len(options_to_update) > 1:
-        for option_obj in options_to_update[1:]:
-            pipeline.publish(channel_key, json.dumps([option_obj.symbol, "update"]))
-
-    pipeline.execute()
     logging.info(
         "Sent %s option symbol cache updates on channel: `%s`",
         len(options_to_update),
@@ -160,6 +155,9 @@ def get_options_from_exchange_symbol_static_data(
 
 def send_lme_cache_update():
     logging.info("Sending LME cache update command on redis")
+    # this and the euronext one are the way they are because of a design change
+    # in option engine, a smarter way to do this would involve providing
+    # product symbols directly to the send_static_data... function
     with sqlalchemy.orm.Session(pg_engine) as session:
         lme_options = get_options_from_exchange_symbol_static_data(session, "xlme")
         send_static_data_update_for_product_ids(REDIS_COMPUTE_CHANNEL, lme_options)
