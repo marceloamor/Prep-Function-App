@@ -130,8 +130,8 @@ def send_static_data_update_for_product_ids(
         json.dumps({"type": "staticdata", "product_symbols": list(product_symbols)}),
     )
     logging.info(
-        "Sent %s option symbol cache updates on channel: `%s`",
-        len(options_to_update),
+        "Sent %s product symbol updates on channel: `%s`",
+        len(product_symbols),
         channel_key,
     )
 
