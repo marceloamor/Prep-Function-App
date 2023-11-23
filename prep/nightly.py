@@ -1,7 +1,6 @@
 import logging
 import os
 from datetime import datetime
-from zoneinfo import ZoneInfo
 
 import pandas as pd
 import redis
@@ -10,6 +9,7 @@ import sqlalchemy.orm
 import ujson
 from dateutil import relativedelta
 from upedata.static_data import Currency, Exchange
+from zoneinfo import ZoneInfo
 
 from prep import handy_dandy_variables
 from prep.exceptions import ProductNotFound
@@ -269,7 +269,7 @@ def update_currency_interest_curves_from_lme(
     redis_pipeline.set(LME_INR_RECENCY_KEY + redis_dev_key_append, most_recent_dt_iso)
     redis_pipeline.execute()
 
-    return most_recent_file == most_recent_dt_iso
+    return most_recent_file != most_recent_dt_iso
 
 
 def update_future_closing_prices_from_lme(
@@ -330,7 +330,7 @@ def update_future_closing_prices_from_lme(
         )
         redis_pipeline.execute()
 
-        return most_recent_file == most_recent_file_dt.isoformat()
+    return most_recent_file != most_recent_file_dt.isoformat()
 
 
 def update_option_closing_prices_from_lme(
