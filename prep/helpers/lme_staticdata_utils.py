@@ -3,7 +3,6 @@ import logging
 from dataclasses import dataclass, field
 from datetime import date, datetime, time
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
-from zoneinfo import ZoneInfo
 
 import numpy as np
 import pandas as pd
@@ -27,6 +26,7 @@ from upedata.static_data import (
     Product,
 )
 from upedata.template_language import parser
+from zoneinfo import ZoneInfo
 
 from prep.exceptions import ProductNotFound
 from prep.helpers import lme_date_calc_funcs, rjo_sftp_utils
@@ -78,14 +78,16 @@ class LMEFuturesCurve:
         not include TOM, CASH, or 3M, but may overlap with monthlies
         or weeklies.
         """
+
+        def within_broken_date_window(dt_to_check):
+            return cash_date < dt_to_check < three_month_date
+
         logging.debug("Populating `LMEFuturesCurve` broken datetimes")
         cash_date = self.cash.date()
         three_month_date = self.three_month.date()
         europe_london_tz = ZoneInfo("Europe/London")
         expiry_time = time(12, 30, tzinfo=europe_london_tz)
-        within_broken_date_window = (
-            lambda dt_to_check: cash_date < dt_to_check < three_month_date
-        )
+
         self.broken_dates = sorted(
             {
                 datetime.combine(filtered_date, expiry_time)
@@ -377,8 +379,8 @@ def generate_and_populate_futures_curve(
     future_expiries = lme_futures_curve.gen_prompt_list()
     futures = gen_lme_futures(future_expiries, product, session=session)
     logging.info("Now have %s valid futures for `%s`", len(futures), product.symbol)
-    if session is not None:
-        session.add_all(futures)
+    # if session is not None:
+    #     session.add_all(futures)
 
     if populate_options:
         logging.info("Generating LME options for `%s`", product.symbol)
@@ -386,8 +388,8 @@ def generate_and_populate_futures_curve(
             futures, product, fetch_lme_option_specification_data(), session=session
         )
         logging.info("Now have %s valid options for `%s`", len(options), product.symbol)
-        if session is not None:
-            session.add_all(options)
+        # if session is not None:
+        #     session.add_all(options)
     else:
         options = []
 
