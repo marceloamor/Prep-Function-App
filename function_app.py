@@ -73,6 +73,10 @@ def update_fcp_data(timer: func.TimerRequest):
         redis_conn, pg_engine, first_run=True
     )
     if fcp_updated:
+        with pg_engine.connect() as connection:
+            connection.execute(
+                sqlalchemy.text("CALL refresh_materialised_view(most_recent_fcps)")
+            )
         send_lme_cache_update()
 
 
