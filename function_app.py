@@ -75,7 +75,7 @@ def update_fcp_data(timer: func.TimerRequest):
     if fcp_updated:
         with pg_engine.connect() as connection:
             connection.execute(
-                sqlalchemy.text("CALL refresh_materialised_view(most_recent_fcps)")
+                sqlalchemy.text("CALL refresh_materialised_view('most_recent_fcps')")
             )
             logging.info("Refreshed most recent future close price materialised view")
         send_lme_cache_update()
