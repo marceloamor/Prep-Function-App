@@ -186,9 +186,9 @@ def gen_lme_futures(
                 product=product,
                 settlement={
                     "form": "physical",
-                    "time": ["expiry", 0],
+                    "time": ["expiry", "0"],
                     "style": "forward",
-                    "version": "1.0",
+                    "version": "1.1",
                 },
             )
             new_lme_future.underlying_feeds = [
