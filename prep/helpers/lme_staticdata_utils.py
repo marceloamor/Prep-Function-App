@@ -196,7 +196,7 @@ def gen_lme_futures(
                 product_relative_spread_feed,
             ]
             if session is not None:
-                session.add(new_lme_future)
+                session.merge(new_lme_future)
 
         except KeyError:
             raise ProductNotFound(
@@ -260,7 +260,7 @@ def gen_lme_options(
                     generated_option
                 )
                 if session is not None:
-                    session.add(generated_option)
+                    session.merge(generated_option)
                 generated_options.append(generated_option)
 
     return generated_options
