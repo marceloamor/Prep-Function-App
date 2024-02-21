@@ -1,18 +1,18 @@
-from prep.helpers import lme_staticdata_utils, date_name_utilities, rjo_sftp_utils
-from upedata.static_data import Product, Future, Option
-from upedata.dynamic_data import VolSurface
-from upedata import enums as upe_enums
-
-from pytest_mock import mocker, MockerFixture
-import pandas as pd
-import pytest
-
-from typing import List, Dict, IO, Union
-from datetime import datetime, date
-from dateutil import relativedelta
-from zoneinfo import ZoneInfo
 import logging
 import os
+from datetime import datetime
+from typing import IO, Dict, List, Union
+
+import pandas as pd
+import pytest
+from dateutil import relativedelta
+from pytest_mock import MockerFixture
+from upedata import enums as upe_enums
+from upedata.dynamic_data import VolSurface
+from upedata.static_data import Future, Option, Product
+from zoneinfo import ZoneInfo
+
+from prep.helpers import lme_staticdata_utils
 
 
 def stub_get_lme_overnight_data(base_file_name: str, fetch_most_recent_num=1):
@@ -311,7 +311,7 @@ def test_populate_full_curve(
     for option in options:
         logging.warning("Option symbol: %s, expiry: %s", option.symbol, option.expiry)
         option_future_expiry = option.expiry + relativedelta.relativedelta(
-            days=14, hour=12, minute=30
+            days=14, hour=19, minute=0
         )
         logging.warning("Underlying predicted expiration: %s", option_future_expiry)
         assert (

@@ -1,12 +1,11 @@
-from upedata.static_data import Holiday
-
-from dateutil import relativedelta, easter
-
+import copy
+import logging
 from datetime import date, datetime, time
 from typing import Dict, List, Optional
+
+from dateutil import easter, relativedelta
+from upedata.static_data import Holiday
 from zoneinfo import ZoneInfo
-import logging
-import copy
 
 
 def get_good_friday_date(year: int) -> date:
@@ -148,7 +147,7 @@ def get_3m_datetime(
             break
 
     return datetime.combine(
-        mapped_guess_3m_datetime, time(12, 30, tzinfo=ZoneInfo("Europe/London"))
+        mapped_guess_3m_datetime, time(19, 0, tzinfo=ZoneInfo("Europe/London"))
     )
 
 
@@ -206,7 +205,7 @@ def get_cash_datetime(
         current_datetime += relativedelta.relativedelta(days=1)
 
     return current_datetime.replace(
-        hour=12, minute=30, second=0, microsecond=0, tzinfo=ZoneInfo("Europe/London")
+        hour=19, minute=0, second=0, microsecond=0, tzinfo=ZoneInfo("Europe/London")
     )
 
 
@@ -257,8 +256,8 @@ def get_tom_datetime(
             business_days_passed += 1
         elif business_days_passed != 0:
             return current_datetime.replace(
-                hour=12,
-                minute=30,
+                hour=19,
+                minute=00,
                 second=0,
                 microsecond=0,
                 tzinfo=ZoneInfo("Europe/London"),
@@ -296,8 +295,8 @@ def get_valid_monthly_prompts(
             + relativedelta.relativedelta(
                 day=1,
                 weekday=relativedelta.WE(3),
-                hour=12,
-                minute=30,
+                hour=19,
+                minute=0,
                 second=0,
                 microsecond=0,
             )
@@ -346,7 +345,7 @@ def get_all_valid_weekly_prompts(
     ):
         weekly_prompt_dates.append(next_wednesday)
         next_wednesday += relativedelta.relativedelta(
-            weeks=1, hour=12, minute=30, second=0, microsecond=0
+            weeks=1, hour=19, minute=0, second=0, microsecond=0
         )
 
     return weekly_prompt_dates
