@@ -199,7 +199,7 @@ def gen_lme_futures(
                 session.execute(
                     pg_insert(Future)
                     .values(new_lme_future.to_dict())
-                    .on_conflict_do_update()
+                    .on_conflict_do_update(index_elements=[Future.symbol])
                 )
 
         except KeyError:
@@ -257,6 +257,8 @@ def gen_lme_options(
                         expiry=option_expiry_date,
                         params=general_option_data["vol_surface"]["params"],
                     ),
+                    product=product,
+                    underlying_future=future,
                     vol_type=upe_enums.VolType(general_option_data["vol_type"]),
                     time_type=upe_enums.TimeType(general_option_data["time_type"]),
                 )
@@ -264,6 +266,8 @@ def gen_lme_options(
                     generated_option
                 )
                 if session is not None:
+                    generated_option.underlying_future = None
+                    generated_option.product = None
                     session.merge(generated_option)
                 generated_options.append(generated_option)
 
