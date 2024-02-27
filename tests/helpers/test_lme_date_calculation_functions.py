@@ -1,13 +1,12 @@
-from prep.helpers import lme_date_calc_funcs
-from upedata.static_data import Holiday
-
-from dateutil import relativedelta
-import pytest
-
-from datetime import date, datetime
-from zoneinfo import ZoneInfo
 import logging
+from datetime import date, datetime
 
+import pytest
+from dateutil import relativedelta
+from upedata.static_data import Holiday
+from zoneinfo import ZoneInfo
+
+from prep.helpers import lme_date_calc_funcs
 
 BASE_HOLIDAY_DATA = [
     ("2023-08-28", 1.0, True),
@@ -151,27 +150,27 @@ def test_lme_prompt_map_has_no_indirect_mappings(test_base_datetime):
     [
         [
             datetime(2023, 11, 30, 15, 35),
-            datetime(2024, 2, 29, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+            datetime(2024, 2, 29, 19, 0, tzinfo=ZoneInfo("Europe/London")),
         ],
         [
             datetime(2024, 2, 6, 15, 35),
-            datetime(2024, 5, 7, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+            datetime(2024, 5, 7, 19, 0, tzinfo=ZoneInfo("Europe/London")),
         ],
         [
             datetime(2024, 3, 1, 5, 35),
-            datetime(2024, 5, 31, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+            datetime(2024, 5, 31, 19, 0, tzinfo=ZoneInfo("Europe/London")),
         ],
         [
             datetime(2024, 11, 15),
-            datetime(2025, 2, 14, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+            datetime(2025, 2, 14, 19, 0, tzinfo=ZoneInfo("Europe/London")),
         ],
         [
             datetime(2025, 8, 30),
-            datetime(2025, 11, 28, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+            datetime(2025, 11, 28, 19, 0, tzinfo=ZoneInfo("Europe/London")),
         ],
         [
             datetime(2025, 9, 26),
-            datetime(2025, 12, 29, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+            datetime(2025, 12, 29, 19, 0, tzinfo=ZoneInfo("Europe/London")),
         ],
     ],
 )
@@ -192,51 +191,51 @@ def test_get_3m_date(base_datetime, expected_3m_date):
     [
         [
             datetime(2023, 11, 21, 12, 15),
-            datetime(2023, 11, 24, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+            datetime(2023, 11, 24, 19, 0, tzinfo=ZoneInfo("Europe/London")),
         ],
         [
             datetime(2023, 11, 22, 15, 51),
-            datetime(2023, 11, 24, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+            datetime(2023, 11, 24, 19, 0, tzinfo=ZoneInfo("Europe/London")),
         ],
         [
             datetime(2023, 11, 30, 15, 1),
-            datetime(2023, 12, 4, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+            datetime(2023, 12, 4, 19, 0, tzinfo=ZoneInfo("Europe/London")),
         ],
         [
             datetime(2024, 3, 28, 13, 30),
-            datetime(2024, 4, 3, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+            datetime(2024, 4, 3, 19, 0, tzinfo=ZoneInfo("Europe/London")),
         ],
         [
             datetime(2024, 12, 24, 13, 30),
-            datetime(2024, 12, 30, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+            datetime(2024, 12, 30, 19, 0, tzinfo=ZoneInfo("Europe/London")),
         ],
         [
             datetime(2024, 12, 24, 19, 31),
-            datetime(2024, 12, 31, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+            datetime(2024, 12, 31, 19, 0, tzinfo=ZoneInfo("Europe/London")),
         ],
         [
             datetime(2025, 6, 18, 3, 59, 10),
-            datetime(2025, 6, 20, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+            datetime(2025, 6, 20, 19, 0, tzinfo=ZoneInfo("Europe/London")),
         ],
         [
             datetime(2025, 6, 18, 20, 59, 10),
-            datetime(2025, 6, 23, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+            datetime(2025, 6, 23, 19, 0, tzinfo=ZoneInfo("Europe/London")),
         ],
         [
             datetime(2025, 6, 19, 14),
-            datetime(2025, 6, 23, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+            datetime(2025, 6, 23, 19, 0, tzinfo=ZoneInfo("Europe/London")),
         ],
         [
             datetime(2025, 6, 19, 19, 31),
-            datetime(2025, 6, 24, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+            datetime(2025, 6, 24, 19, 0, tzinfo=ZoneInfo("Europe/London")),
         ],
         [
             datetime(2025, 10, 10, 12, 30),
-            datetime(2025, 10, 14, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+            datetime(2025, 10, 14, 19, 0, tzinfo=ZoneInfo("Europe/London")),
         ],
         [
             datetime(2025, 10, 10, 19, 31),
-            datetime(2025, 10, 15, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+            datetime(2025, 10, 15, 19, 0, tzinfo=ZoneInfo("Europe/London")),
         ],
     ],
 )
@@ -252,46 +251,46 @@ def test_get_cash_date(base_datetime, expected_date):
     [
         [
             datetime(2023, 11, 21, 12, 15),
-            datetime(2023, 11, 22, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+            datetime(2023, 11, 22, 19, 0, tzinfo=ZoneInfo("Europe/London")),
         ],
         [datetime(2023, 11, 22, 15, 51), None],
         [
             datetime(2023, 11, 30, 15, 1),
-            datetime(2023, 12, 1, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+            datetime(2023, 12, 1, 19, 0, tzinfo=ZoneInfo("Europe/London")),
         ],
         [
             datetime(2024, 3, 28, 13, 30),
-            datetime(2024, 4, 2, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+            datetime(2024, 4, 2, 19, 0, tzinfo=ZoneInfo("Europe/London")),
         ],
         [
             datetime(2024, 12, 24, 13, 30),
-            datetime(2024, 12, 27, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+            datetime(2024, 12, 27, 19, 0, tzinfo=ZoneInfo("Europe/London")),
         ],
         [
             datetime(2024, 12, 24, 19, 31),
-            datetime(2024, 12, 30, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+            datetime(2024, 12, 30, 19, 0, tzinfo=ZoneInfo("Europe/London")),
         ],
         [datetime(2025, 6, 18, 3, 59, 10), None],
         [
             datetime(2025, 6, 18, 20, 59, 10),
-            datetime(2025, 6, 20, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+            datetime(2025, 6, 20, 19, 0, tzinfo=ZoneInfo("Europe/London")),
         ],
         [
             datetime(2025, 6, 19, 14),
-            datetime(2025, 6, 20, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+            datetime(2025, 6, 20, 19, 0, tzinfo=ZoneInfo("Europe/London")),
         ],
         [
             datetime(2025, 6, 19, 19, 31),
-            datetime(2025, 6, 23, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+            datetime(2025, 6, 23, 19, 0, tzinfo=ZoneInfo("Europe/London")),
         ],
         [datetime(2025, 10, 10, 12, 30), None],
         [
             datetime(2025, 10, 10, 19, 31),
-            datetime(2025, 10, 14, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+            datetime(2025, 10, 14, 19, 0, tzinfo=ZoneInfo("Europe/London")),
         ],
         [
             datetime(2023, 10, 19, 2, 1, 32, tzinfo=ZoneInfo("Europe/London")),
-            datetime(2023, 10, 20, 12, 30, tzinfo=ZoneInfo("Europe/London")),
+            datetime(2023, 10, 20, 19, 0, tzinfo=ZoneInfo("Europe/London")),
         ],
     ],
 )
@@ -328,8 +327,8 @@ def test_get_all_valid_monthly_prompts(base_datetime: datetime, months_forward: 
         expected_third_wednesday = monthly_prompt + relativedelta.relativedelta(
             day=1,
             weekday=relativedelta.WE(3),
-            hour=12,
-            minute=30,
+            hour=19,
+            minute=0,
             second=0,
             microsecond=0,
         )
@@ -340,11 +339,11 @@ def test_get_all_valid_monthly_prompts(base_datetime: datetime, months_forward: 
             monthly_prompt == expected_third_wednesday
         ), "Monthly prompts must fall on the third Wednesday of the Month"
         assert (
-            monthly_prompt.hour == 12
-            and monthly_prompt.minute == 30
+            monthly_prompt.hour == 19
+            and monthly_prompt.minute == 0
             and monthly_prompt.second == 0
             and monthly_prompt.microsecond == 0
-        ), "LME prompts expire at the close (12:30)"
+        ), "LME prompts expire at the close (19:00)"
 
     assert (
         relativedelta.relativedelta(monthly_prompts[-1], base_datetime).months

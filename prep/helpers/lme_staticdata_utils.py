@@ -86,7 +86,7 @@ class LMEFuturesCurve:
         cash_date = self.cash.date()
         three_month_date = self.three_month.date()
         europe_london_tz = ZoneInfo("Europe/London")
-        expiry_time = time(12, 30, tzinfo=europe_london_tz)
+        expiry_time = time(19, 00, tzinfo=europe_london_tz)
 
         self.broken_dates = sorted(
             {
@@ -183,7 +183,7 @@ def gen_lme_futures(
                 ).upper(),
                 expiry=expiry_date,
                 multiplier=LME_FUTURE_MULTIPLIERS[product.short_name],
-                product=product,
+                product_symbol=product.symbol,
                 settlement={
                     "form": "physical",
                     "time": ["expiry", "0"],
@@ -196,7 +196,11 @@ def gen_lme_futures(
                 product_relative_spread_feed,
             ]
             if session is not None:
-                session.merge(new_lme_future)
+                session.execute(
+                    pg_insert(Future)
+                    .values(new_lme_future.to_dict())
+                    .on_conflict_do_update(index_elements=[Future.symbol])
+                )
 
         except KeyError:
             raise ProductNotFound(
@@ -246,13 +250,15 @@ def gen_lme_options(
                     strike_intervals=general_option_data["strike_intervals"],
                     expiry=option_expiry_date,
                     display_name=option_specification_data["shared"]["display_name"],
-                    product=product,
-                    underlying_future=future,
+                    product_symbol=product.symbol,
+                    underlying_future_symbol=future.symbol,
                     vol_surface=VolSurface(
                         model_type=general_option_data["vol_surface"]["model_type"],
                         expiry=option_expiry_date,
                         params=general_option_data["vol_surface"]["params"],
                     ),
+                    product=product,
+                    underlying_future=future,
                     vol_type=upe_enums.VolType(general_option_data["vol_type"]),
                     time_type=upe_enums.TimeType(general_option_data["time_type"]),
                 )
@@ -260,6 +266,8 @@ def gen_lme_options(
                     generated_option
                 )
                 if session is not None:
+                    generated_option.underlying_future = None
+                    generated_option.product = None
                     session.merge(generated_option)
                 generated_options.append(generated_option)
 
