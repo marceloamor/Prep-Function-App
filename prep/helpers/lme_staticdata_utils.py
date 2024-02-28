@@ -196,11 +196,16 @@ def gen_lme_futures(
                 product_relative_spread_feed,
             ]
             if session is not None:
+                dict_future = new_lme_future.to_dict()
                 session.execute(
                     pg_insert(Future)
-                    .values(new_lme_future.to_dict())
-                    .on_conflict_do_update(index_elements=[Future.symbol])
+                    .values(dict_future)
+                    .on_conflict_do_update(
+                        index_elements=[Future.symbol], set_=dict_future
+                    )
                 )
+                session.add(product_3m_future_price_feed_assoc)
+                session.add(product_relative_spread_feed)
 
         except KeyError:
             raise ProductNotFound(
@@ -219,6 +224,7 @@ def gen_lme_options(
 ) -> List[Option]:
     two_week_td = relativedelta(days=14)
     generated_options: List[Option] = []
+
     for future in futures_list:
         # first need to check to make sure it's on a third Wednesday, as these will
         # always be underlying of an LME option.
@@ -244,6 +250,22 @@ def gen_lme_options(
                     if generated_option is not None:
                         generated_options.append(generated_option)
                         continue
+                    else:
+                        new_default_vol_surface_id = session.execute(
+                            pg_insert(VolSurface)
+                            .values(
+                                {
+                                    "model_type": general_option_data["vol_surface"][
+                                        "model_type"
+                                    ],
+                                    "expiry": option_expiry_date,
+                                    "params": general_option_data["vol_surface"][
+                                        "params"
+                                    ],
+                                }
+                            )
+                            .returning(VolSurface.vol_surface_id)
+                        ).scalar_one_or_none()
                 generated_option = Option(
                     symbol=f"{product.symbol} o {option_expiry_date.strftime(r'%y-%m-%d')} a",
                     multiplier=general_option_data["multiplier"],
@@ -252,23 +274,20 @@ def gen_lme_options(
                     display_name=option_specification_data["shared"]["display_name"],
                     product_symbol=product.symbol,
                     underlying_future_symbol=future.symbol,
-                    vol_surface=VolSurface(
-                        model_type=general_option_data["vol_surface"]["model_type"],
-                        expiry=option_expiry_date,
-                        params=general_option_data["vol_surface"]["params"],
-                    ),
-                    product=product,
-                    underlying_future=future,
+                    vol_surface_id=new_default_vol_surface_id,
                     vol_type=upe_enums.VolType(general_option_data["vol_type"]),
                     time_type=upe_enums.TimeType(general_option_data["time_type"]),
+                    product=product,
+                    underlying_future=future,
                 )
                 generated_option = parser.substitute_derivative_generation_time(
                     generated_option
                 )
                 if session is not None:
-                    generated_option.underlying_future = None
-                    generated_option.product = None
-                    session.merge(generated_option)
+                    dict_option = generated_option.to_dict()
+                    session.execute(
+                        pg_insert(Option).values(dict_option).on_conflict_do_nothing()
+                    )
                 generated_options.append(generated_option)
 
     return generated_options
