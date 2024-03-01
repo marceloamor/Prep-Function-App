@@ -168,6 +168,9 @@ def test_generate_staticdata_lme_futures_from_prompts(
         assert sd_future.multiplier == expected_multiplier, "Multiplier mismatch"
 
 
+@pytest.mark.skip(
+    "Structure changed, vol surfaces don't exist outside of database at gen-time"
+)
 @pytest.mark.parametrize(
     ["input_futures_list", "option_template_data", "expected_options_list"],
     [

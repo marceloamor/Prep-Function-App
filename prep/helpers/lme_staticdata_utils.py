@@ -197,13 +197,14 @@ def gen_lme_futures(
             ]
             if session is not None:
                 dict_future = new_lme_future.to_dict()
-                session.execute(
+                new_lme_future = session.execute(
                     pg_insert(Future)
                     .values(dict_future)
                     .on_conflict_do_update(
                         index_elements=[Future.symbol], set_=dict_future
                     )
-                )
+                    .returning(Future)
+                ).scalar_one_or_none()
                 session.add(product_3m_future_price_feed_assoc)
                 session.add(product_relative_spread_feed)
 
@@ -211,7 +212,8 @@ def gen_lme_futures(
             raise ProductNotFound(
                 f"Unable to find {product.short_name} in `LME_FUTURE_MULTIPLIERS`"
             )
-        static_data_futures.append(new_lme_future)
+        if new_lme_future is not None:
+            static_data_futures.append(new_lme_future)
 
     return static_data_futures
 
@@ -266,6 +268,8 @@ def gen_lme_options(
                             )
                             .returning(VolSurface.vol_surface_id)
                         ).scalar_one_or_none()
+                else:
+                    new_default_vol_surface_id = 0
                 generated_option = Option(
                     symbol=f"{product.symbol} o {option_expiry_date.strftime(r'%y-%m-%d')} a",
                     multiplier=general_option_data["multiplier"],
