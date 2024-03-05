@@ -1,18 +1,22 @@
 import json
 import logging
 import os
+from datetime import datetime
 from typing import List
 
 import azure.functions as func
 import redis
 import sqlalchemy
 import sqlalchemy.orm
+import upedata.static_data as upestatic
 from redis.backoff import ExponentialBackoff
 from redis.retry import Retry
 from upedata.static_data import Exchange, Option
+from zoneinfo import ZoneInfo
 
 import prep.nightly as nightly_funcs
 from prep import handy_dandy_variables
+from prep.helpers.lme_staticdata_utils import populate_primary_curve_datetimes
 
 app = func.FunctionApp()
 
@@ -112,6 +116,76 @@ def update_lme_date_data(timer: func.TimerRequest):
         # placeholder_dt=datetime(2023, 1, 1, tzinfo=ZoneInfo("Europe/London")),
     )
     logging.info("Completed LME static data update")
+
+
+@app.function_name(name="update_lme_important_dates")
+@app.schedule(
+    schedule="32 5 20 * * SUN-THU",
+    arg_name="timer",
+    use_monitor=True,
+)
+def update_lme_important_dates(timer: func.TimerRequest):
+    logging.info("Starting LME static data update job")
+    with sqlalchemy.orm.Session(pg_engine) as session:
+        lme_ali_orm = session.get(upestatic.Product, "xlme-lad-usd")
+        if lme_ali_orm is None:
+            raise ValueError("Unable to find xlme-lad-usd in database products")
+        non_prompts = [holiday.holiday_date for holiday in lme_ali_orm.holidays]
+        forward_months = 18
+        current_datetime = datetime.now(tz=ZoneInfo("Europe/London"))
+        prompt_curve = populate_primary_curve_datetimes(
+            non_prompts,
+            lme_ali_orm.holidays,
+            forward_months,
+            _current_datetime=current_datetime,
+        )
+
+    lme_3m_datetime = prompt_curve.three_month
+    lme_cash_datetime = prompt_curve.cash
+    lme_tom_datetime = prompt_curve.tom
+
+    redis_pipeline = redis_conn.pipeline()
+    for key in nightly_funcs.LME_3M_DATE_KEYS:
+        redis_pipeline.set(
+            key + nightly_funcs.redis_dev_key_append,
+            lme_3m_datetime.strftime(r"%Y%m%d"),
+        )
+        logging.info(
+            "Set 3M redis key `%s` to `%s",
+            key + nightly_funcs.redis_dev_key_append,
+            lme_3m_datetime.strftime(r"%Y%m%d"),
+        )
+    for key in nightly_funcs.LME_CASH_DATE_KEYS:
+        redis_pipeline.set(
+            key + nightly_funcs.redis_dev_key_append,
+            lme_cash_datetime.strftime(r"%Y%m%d"),
+        )
+        logging.info(
+            "Set CASH redis key `%s` to `%s",
+            key + nightly_funcs.redis_dev_key_append,
+            lme_cash_datetime.strftime(r"%Y%m%d"),
+        )
+    for key in nightly_funcs.LME_TOM_DATE_KEYS:
+        if lme_tom_datetime is not None:
+            redis_pipeline.set(
+                key + nightly_funcs.redis_dev_key_append,
+                lme_tom_datetime.strftime(r"%Y%m%d"),
+            )
+            logging.info(
+                "Set TOM redis key `%s` to `%s",
+                key + nightly_funcs.redis_dev_key_append,
+                lme_tom_datetime.strftime(r"%Y%m%d"),
+            )
+        else:
+            # In the case where there isn't a TOM date (i.e. double cash days)
+            # we want to push no value to Redis for the TOM date so delete it.
+            redis_pipeline.delete(key + nightly_funcs.redis_dev_key_append)
+            logging.info(
+                "Cleared TOM redis key `%s` due to double cash day",
+                key + nightly_funcs.redis_dev_key_append,
+            )
+
+    redis_pipeline.execute()
 
 
 def send_static_data_update_for_product_ids(
