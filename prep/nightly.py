@@ -68,7 +68,7 @@ def update_lme_relative_forward_dates(
         logging.info("No updating 3M date on weekends")
         return
 
-    with sqlalchemy.orm.Session(engine) as session:
+    with sqlalchemy.orm.Session(engine, autoflush=False) as session:
         lme_exchange = session.get(Exchange, "xlme")
         if lme_exchange is None:
             raise ValueError("Unable to find LME exchange under symbol `xlme`")
@@ -240,9 +240,9 @@ def update_currency_interest_curves_from_lme(
                 rate_data["legacy"][
                     interest_rate_row_data.Index.strftime(r"%Y%m%d")
                 ] = {"Interest Rate": interest_rate_row_data.interp_cont_rate}
-                rate_data["new"][
-                    interest_rate_row_data.Index.strftime(r"%Y%m%d")
-                ] = interest_rate_row_data.interp_cont_rate
+                rate_data["new"][interest_rate_row_data.Index.strftime(r"%Y%m%d")] = (
+                    interest_rate_row_data.interp_cont_rate
+                )
         session.commit()
 
     redis_pipeline = redis_conn.pipeline()
@@ -318,9 +318,9 @@ def update_future_closing_prices_from_lme(
             )
             underlying_close_data = {}  # date: interpolated_price
             for row in interpolated_product_curve_df.itertuples():
-                underlying_close_data[
-                    row.Index.to_pydatetime().strftime(r"%Y%m%d")
-                ] = round(row.interpolated_price, 2)
+                underlying_close_data[row.Index.to_pydatetime().strftime(r"%Y%m%d")] = (
+                    round(row.interpolated_price, 2)
+                )
             redis_pipeline.set(
                 redis_key + redis_dev_key_append, ujson.dumps(underlying_close_data)
             )
