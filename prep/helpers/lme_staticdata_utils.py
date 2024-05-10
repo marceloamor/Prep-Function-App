@@ -145,8 +145,8 @@ def gen_lme_futures(
             delayed=False,
             subscribe=True,
         )
-        if session is not None:
-            session.add(product_3m_feed)
+    if session is not None:
+        session.add(product_3m_feed)
     if session is None or product_3m_relative_spread_feed is None:
         product_3m_relative_spread_feed = PriceFeed(
             feed_id="SPREAD_RELATIVE_TO_3M",
@@ -154,8 +154,8 @@ def gen_lme_futures(
             delayed=False,
             subscribe=False,
         )
-        if session is not None:
-            session.add(product_3m_relative_spread_feed)
+    if session is not None:
+        session.add(product_3m_relative_spread_feed)
     for expiry_date in expiry_dates:
         try:
             # this is terrible and inefficient *but* this runs once a day in the early
