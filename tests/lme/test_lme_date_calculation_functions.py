@@ -6,7 +6,7 @@ from dateutil import relativedelta
 from upedata.static_data import Holiday
 from zoneinfo import ZoneInfo
 
-from prep.helpers import lme_date_calc_funcs
+from prep.lme import date_calc_funcs
 
 BASE_HOLIDAY_DATA = [
     ("2023-08-28", 1.0, True),
@@ -73,7 +73,7 @@ MOCK_HOLIDAYS = [
     ],
 )
 def test_get_good_friday_date(input_year, expected_date):
-    assert expected_date == lme_date_calc_funcs.get_good_friday_date(input_year)
+    assert expected_date == date_calc_funcs.get_good_friday_date(input_year)
 
 
 @pytest.mark.parametrize(
@@ -87,7 +87,7 @@ def test_get_good_friday_date(input_year, expected_date):
     ],
 )
 def test_lme_prompt_map_has_no_circular_mappings(test_base_datetime):
-    lme_prompt_map = lme_date_calc_funcs.get_lme_prompt_map(
+    lme_prompt_map = date_calc_funcs.get_lme_prompt_map(
         LME_2023_THROUGH_2025_NON_PROMPTS, test_base_datetime
     )
 
@@ -126,7 +126,7 @@ def test_lme_prompt_map_has_no_circular_mappings(test_base_datetime):
     ],
 )
 def test_lme_prompt_map_has_no_indirect_mappings(test_base_datetime):
-    lme_prompt_map = lme_date_calc_funcs.get_lme_prompt_map(
+    lme_prompt_map = date_calc_funcs.get_lme_prompt_map(
         LME_2023_THROUGH_2025_NON_PROMPTS, _current_datetime=test_base_datetime
     )
 
@@ -175,12 +175,10 @@ def test_lme_prompt_map_has_no_indirect_mappings(test_base_datetime):
     ],
 )
 def test_get_3m_date(base_datetime, expected_3m_date):
-    lme_prompt_map = lme_date_calc_funcs.get_lme_prompt_map(
+    lme_prompt_map = date_calc_funcs.get_lme_prompt_map(
         LME_2023_THROUGH_2025_NON_PROMPTS, _current_datetime=base_datetime
     )
-    calculated_3m_date = lme_date_calc_funcs.get_3m_datetime(
-        base_datetime, lme_prompt_map
-    )
+    calculated_3m_date = date_calc_funcs.get_3m_datetime(base_datetime, lme_prompt_map)
     logging.warning("LME prompt map for failed test was:\n%s", lme_prompt_map)
 
     assert calculated_3m_date == expected_3m_date
@@ -241,8 +239,7 @@ def test_get_3m_date(base_datetime, expected_3m_date):
 )
 def test_get_cash_date(base_datetime, expected_date):
     assert (
-        lme_date_calc_funcs.get_cash_datetime(base_datetime, MOCK_HOLIDAYS)
-        == expected_date
+        date_calc_funcs.get_cash_datetime(base_datetime, MOCK_HOLIDAYS) == expected_date
     )
 
 
@@ -296,7 +293,7 @@ def test_get_cash_date(base_datetime, expected_date):
 )
 def test_get_tom_datetime(base_datetime, expected_datetime):
     assert (
-        lme_date_calc_funcs.get_tom_datetime(base_datetime, MOCK_HOLIDAYS)
+        date_calc_funcs.get_tom_datetime(base_datetime, MOCK_HOLIDAYS)
         == expected_datetime
     )
 
@@ -319,7 +316,7 @@ def test_get_tom_datetime(base_datetime, expected_datetime):
     ],
 )
 def test_get_all_valid_monthly_prompts(base_datetime: datetime, months_forward: int):
-    monthly_prompts = lme_date_calc_funcs.get_valid_monthly_prompts(
+    monthly_prompts = date_calc_funcs.get_valid_monthly_prompts(
         base_datetime, forward_months=months_forward
     )
 
@@ -370,10 +367,10 @@ def test_get_all_valid_monthly_prompts(base_datetime: datetime, months_forward: 
     ],
 )
 def test_get_all_valid_weekly_prompts(base_datetime: datetime):
-    lme_prompt_map = lme_date_calc_funcs.get_lme_prompt_map(
+    lme_prompt_map = date_calc_funcs.get_lme_prompt_map(
         LME_2023_THROUGH_2025_NON_PROMPTS, _current_datetime=base_datetime
     )
-    weekly_prompts = lme_date_calc_funcs.get_all_valid_weekly_prompts(
+    weekly_prompts = date_calc_funcs.get_all_valid_weekly_prompts(
         base_datetime, lme_prompt_map
     )
 
