@@ -1,15 +1,19 @@
+import json
+import logging
 from datetime import datetime
 from typing import Any, Dict, List
 
-import contract_param_gen
 import sqlalchemy
 import upedata.dynamic_data as upedynamic
 import upedata.enums as upeenums
 import upedata.static_data as upestatic
 import upedata.template_language.parser as upeparse
-from dateutil.relativedelta import relativedelta
+from dateutil.relativedelta import WE, relativedelta
 from sqlalchemy import orm
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+from prep.exceptions import ProductNotFound
+from prep.lme import contract_param_gen, date_calc_funcs
 
 LME_PRODUCT_NAMES = ["AHD", "CAD", "PBD", "ZSD", "NID"]
 LME_METAL_NAMES = ["aluminium", "copper", "lead", "zinc", "nickel"]
@@ -194,3 +198,35 @@ def add_options_to_database(
     new_options = db_session.execute(insert_options).scalars().all()
 
     return list(new_options)
+
+
+def update_lme_static_data(pg_session: orm.Session, months_ahead=18):
+    with open("./prep/helpers/data_files/lme_option_base_data.json") as fp:
+        option_spec_data = json.load(fp)
+    for product_symbol, prod_specific_op_data in option_spec_data["specific"].items():
+        prod_specific_op_data |= option_spec_data["shared"]
+        product = pg_session.get(upestatic.Product, product_symbol)
+        if product is None:
+            raise ProductNotFound(
+                f"Unable to find `{product_symbol}` in products table"
+            )
+        holiday_dates = [holiday.holiday_date for holiday in product.holidays]
+        lme_futures_curve = date_calc_funcs.populate_primary_curve_datetimes(
+            holiday_dates, product.holidays, forward_months=months_ahead
+        )
+        futures_prompt_list = lme_futures_curve.gen_prompt_list()
+
+        option_expiry_dts = [
+            future_expiry + relativedelta(day=1, weekday=WE(1), hour=11, minute=15)
+            for future_expiry in lme_futures_curve.monthlies
+        ]
+
+        new_futures = add_futures_to_database(
+            futures_prompt_list, product.symbol, pg_session
+        )
+        logging.info("Added %s futures for %s", len(new_futures), product.symbol)
+
+        new_options = add_options_to_database(
+            option_expiry_dts, product, prod_specific_op_data, pg_session
+        )
+        logging.info("Added %s futures for %s", len(new_options), product.symbol)
