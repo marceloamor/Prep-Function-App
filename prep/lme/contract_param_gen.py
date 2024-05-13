@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from upedata import enums as upeenums
 
@@ -8,8 +8,8 @@ def generate_future_params(
     product_symbol: str,
     expiry_datetime: datetime,
     multiplier: int,
-    display_name: str,
     settlement: Dict[str, Any],
+    display_name: Optional[str] = None,
 ) -> Dict[str, Any]:
     if expiry_datetime.tzinfo is None:
         raise ValueError(
@@ -80,7 +80,7 @@ def generate_option_params(
     multiplier: int,
     vol_type: upeenums.VolType,
     expiry_datetime: datetime,
-    display_name: str,
+    display_name: Optional[str] = None,
 ) -> Dict[str, Any]:
     if expiry_datetime.tzinfo is None:
         raise ValueError(
