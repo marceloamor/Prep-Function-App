@@ -107,46 +107,6 @@ def update_lme_relative_forward_dates(
 
         session.commit()
 
-    redis_pipeline = redis_conn.pipeline()
-    for key in LME_3M_DATE_KEYS:
-        redis_pipeline.set(
-            key + redis_dev_key_append, lme_3m_datetime.strftime(r"%Y%m%d")
-        )
-        logging.debug(
-            "Set 3M redis key `%s` to `%s",
-            key + redis_dev_key_append,
-            lme_3m_datetime.strftime(r"%Y%m%d"),
-        )
-    for key in LME_CASH_DATE_KEYS:
-        redis_pipeline.set(
-            key + redis_dev_key_append, lme_cash_datetime.strftime(r"%Y%m%d")
-        )
-        logging.debug(
-            "Set CASH redis key `%s` to `%s",
-            key + redis_dev_key_append,
-            lme_cash_datetime.strftime(r"%Y%m%d"),
-        )
-    for key in LME_TOM_DATE_KEYS:
-        if lme_tom_datetime is not None:
-            redis_pipeline.set(
-                key + redis_dev_key_append, lme_tom_datetime.strftime(r"%Y%m%d")
-            )
-            logging.debug(
-                "Set TOM redis key `%s` to `%s",
-                key + redis_dev_key_append,
-                lme_tom_datetime.strftime(r"%Y%m%d"),
-            )
-        else:
-            # In the case where there isn't a TOM date (i.e. double cash days)
-            # we want to push no value to Redis for the TOM date so delete it.
-            redis_pipeline.delete(key + redis_dev_key_append)
-            logging.debug(
-                "Cleared TOM redis key `%s` due to double cash day",
-                key + redis_dev_key_append,
-            )
-
-    redis_pipeline.execute()
-
 
 def update_exchange_rate_curves_from_lme(
     redis_conn: redis.Redis, engine: sqlalchemy.Engine
@@ -238,9 +198,9 @@ def update_currency_interest_curves_from_lme(
             )
             for interest_rate_row_data in interped_interest_rate_df.itertuples():
                 rate_data["legacy"][
-                    interest_rate_row_data.Index.strftime(r"%Y%m%d")
+                    interest_rate_row_data.Index.strftime(r"%Y%m%d")  # type: ignore
                 ] = {"Interest Rate": interest_rate_row_data.interp_cont_rate}
-                rate_data["new"][interest_rate_row_data.Index.strftime(r"%Y%m%d")] = (
+                rate_data["new"][interest_rate_row_data.Index.strftime(r"%Y%m%d")] = (  # type: ignore
                     interest_rate_row_data.interp_cont_rate
                 )
         session.commit()
@@ -318,8 +278,8 @@ def update_future_closing_prices_from_lme(
             )
             underlying_close_data = {}  # date: interpolated_price
             for row in interpolated_product_curve_df.itertuples():
-                underlying_close_data[row.Index.to_pydatetime().strftime(r"%Y%m%d")] = (
-                    round(row.interpolated_price, 2)
+                underlying_close_data[row.Index.to_pydatetime().strftime(r"%Y%m%d")] = (  # type: ignore
+                    round(row.interpolated_price, 2)  # type: ignore
                 )
             redis_pipeline.set(
                 redis_key + redis_dev_key_append, ujson.dumps(underlying_close_data)
