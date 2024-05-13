@@ -423,9 +423,6 @@ def populate_primary_curve_datetimes(
     :type non_prompts: List[date]
     :param product_holidays: List of all product holidays
     :type product_holidays: List[Holiday]
-    :param populate_options: Whether to generate options associated with generated monthly
-    futures, defaults to True
-    :type populate_options: bool, optional
     :param forward_months: Number of months of monthly futures to generate, also corresponds
     to the number of options generated as these are derivative of the monthly futures,
     defaults to 18
