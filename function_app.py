@@ -16,7 +16,7 @@ from zoneinfo import ZoneInfo
 
 import prep.nightly as nightly_funcs
 from prep import handy_dandy_variables
-from prep.helpers.lme_staticdata_utils import populate_primary_curve_datetimes
+from prep.lme import contract_db_gen, date_calc_funcs
 
 app = func.FunctionApp()
 
@@ -109,12 +109,9 @@ def update_exr_data(timer: func.TimerRequest):
 )
 def update_lme_date_data(timer: func.TimerRequest):
     logging.info("Starting LME static data update job")
-    nightly_funcs.update_lme_relative_forward_dates(
-        redis_conn,
-        pg_engine,
-        first_run=True,
-        # placeholder_dt=datetime(2023, 1, 1, tzinfo=ZoneInfo("Europe/London")),
-    )
+    with sqlalchemy.orm.Session(pg_engine) as session:
+        contract_db_gen.update_lme_static_data(session)
+        session.commit()
     logging.info("Completed LME static data update")
 
 
@@ -133,7 +130,7 @@ def update_lme_important_dates(timer: func.TimerRequest):
         non_prompts = [holiday.holiday_date for holiday in lme_ali_orm.holidays]
         forward_months = 18
         current_datetime = datetime.now(tz=ZoneInfo("Europe/London"))
-        prompt_curve = populate_primary_curve_datetimes(
+        prompt_curve = date_calc_funcs.populate_primary_curve_datetimes(
             non_prompts,
             lme_ali_orm.holidays,
             forward_months,

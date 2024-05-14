@@ -1,11 +1,68 @@
 import copy
 import logging
+from dataclasses import dataclass, field
 from datetime import date, datetime, time
 from typing import Dict, List, Optional
 
 from dateutil import easter, relativedelta
 from upedata.static_data import Holiday
 from zoneinfo import ZoneInfo
+
+_DEFAULT_FORWARD_MONTHS = 18
+
+
+@dataclass
+class LMEFuturesCurve:
+    cash: datetime
+    three_month: datetime
+    weeklies: List[datetime]
+    monthlies: List[datetime]
+    prompt_map: Dict[date, date]
+    tom: Optional[datetime] = None
+    broken_dates: List[datetime] = field(default_factory=list)
+
+    # possibly the most disgustingly *pythonic* thing I've ever written...
+    # sorry to anyone that has to look at this
+    def populate_broken_datetimes(self):
+        """Populates the broken dates within the curve in-place, will
+        not include TOM, CASH, or 3M, but may overlap with monthlies
+        or weeklies.
+        """
+
+        def within_broken_date_window(dt_to_check):
+            return cash_date < dt_to_check < three_month_date
+
+        logging.debug("Populating `LMEFuturesCurve` broken datetimes")
+        cash_date = self.cash.date()
+        three_month_date = self.three_month.date()
+        europe_london_tz = ZoneInfo("Europe/London")
+        expiry_time = time(19, 00, tzinfo=europe_london_tz)
+
+        self.broken_dates = sorted(
+            {
+                datetime.combine(filtered_date, expiry_time)
+                for filtered_date in set(self.prompt_map.values())
+                if within_broken_date_window(filtered_date)
+            }
+        )
+
+    def gen_prompt_list(self) -> List[datetime]:
+        """Returns a sorted list of all prompts contained in this
+        dataclass
+
+        :return: Sorted list of prompt datetimes
+        :rtype: List[datetime]
+        """
+        logging.debug("Generating prompt list from `LMEFuturesCurve`")
+        prompt_set = set(
+            [self.cash, self.three_month]
+            + self.weeklies
+            + self.monthlies
+            + self.broken_dates
+        )
+        if self.tom is not None:
+            prompt_set.add(self.tom)
+        return sorted(list(prompt_set))
 
 
 def get_good_friday_date(year: int) -> date:
@@ -349,3 +406,49 @@ def get_all_valid_weekly_prompts(
         )
 
     return weekly_prompt_dates
+
+
+def populate_primary_curve_datetimes(
+    non_prompts: List[date],
+    product_holidays: List[Holiday],
+    forward_months=_DEFAULT_FORWARD_MONTHS,
+    _current_datetime=None,
+) -> LMEFuturesCurve:
+    """Generates and populates a container dataclass with the primary
+    prompt dates associated with a given LME product, this will
+    provide: TOM, CASH, 3M, weeklies, and monthlies with no guarantee
+    of uniqueness of prompt between these fields.
+
+    :param non_prompts: List of all LME non-prompt dates
+    :type non_prompts: List[date]
+    :param product_holidays: List of all product holidays
+    :type product_holidays: List[Holiday]
+    :param forward_months: Number of months of monthly futures to generate, also corresponds
+    to the number of options generated as these are derivative of the monthly futures,
+    defaults to 18
+    :type forward_months: int, optional
+    :return: Container for LME product future prompt datetimes
+    :rtype: LMEFuturesCurve
+    """
+    if not isinstance(_current_datetime, datetime):
+        _current_datetime = datetime.now(tz=ZoneInfo("Europe/London"))
+    lme_prompt_map = get_lme_prompt_map(
+        non_prompts, _current_datetime=_current_datetime
+    )
+    lme_3m_datetime = get_3m_datetime(_current_datetime, lme_prompt_map)
+    lme_cash_datetime = get_cash_datetime(_current_datetime, product_holidays)
+    lme_tom_datetime = get_tom_datetime(_current_datetime, product_holidays)
+    lme_weekly_datetimes = get_all_valid_weekly_prompts(
+        _current_datetime, lme_prompt_map
+    )
+    lme_monthly_datetimes = get_valid_monthly_prompts(
+        _current_datetime, forward_months=forward_months
+    )
+    return LMEFuturesCurve(
+        lme_cash_datetime,
+        lme_3m_datetime,
+        lme_weekly_datetimes,
+        lme_monthly_datetimes,
+        lme_prompt_map,
+        tom=lme_tom_datetime,
+    )

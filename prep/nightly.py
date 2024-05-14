@@ -8,12 +8,11 @@ import sqlalchemy
 import sqlalchemy.orm
 import ujson
 from dateutil import relativedelta
-from upedata.static_data import Currency, Exchange
-from zoneinfo import ZoneInfo
+from upedata.static_data import Currency
 
 from prep import handy_dandy_variables
-from prep.exceptions import ProductNotFound
 from prep.helpers import lme_staticdata_utils, time_series_interpolation
+from prep.lme import contract_db_gen
 
 redis_dev_key_append = handy_dandy_variables.redis_key_append
 
@@ -49,103 +48,10 @@ UPDATED_CURRENCY_TO_KEY = {
 LME_FCP_PRODUCT_TO_REDIS_KEY = {
     lme_product_name[0:2]: f"lme:xlme-{georgia_product_name}-usd:fcp"
     for lme_product_name, georgia_product_name in zip(
-        lme_staticdata_utils.LME_PRODUCT_NAMES,
-        lme_staticdata_utils.GEORGIA_LME_PRODUCT_NAMES_BASE,
+        contract_db_gen.LME_PRODUCT_NAMES,
+        contract_db_gen.GEORGIA_LME_PRODUCT_NAMES_BASE,
     )
 }
-
-
-def update_lme_relative_forward_dates(
-    redis_conn: redis.Redis,
-    engine: sqlalchemy.Engine,
-    first_run=False,
-    placeholder_dt=None,
-):
-    now_london_datetime = datetime.now(
-        tz=ZoneInfo("Europe/London")
-    ) + relativedelta.relativedelta(hours=6)
-    if now_london_datetime.weekday() >= 5:
-        logging.info("No updating 3M date on weekends")
-        return
-
-    with sqlalchemy.orm.Session(engine) as session:
-        lme_exchange = session.get(Exchange, "xlme")
-        if lme_exchange is None:
-            raise ValueError("Unable to find LME exchange under symbol `xlme`")
-        # this is based on the assumption that all LME products share the
-        cached_futures_curve_data = None
-        for lme_product in lme_exchange.products:
-            lme_futures_curve_data = (
-                lme_staticdata_utils.update_lme_product_static_data(
-                    lme_product,
-                    session,
-                    first_run=first_run,
-                    placeholder_dt=placeholder_dt,
-                )
-            )
-            if (
-                lme_product.short_name.lower() in ["lcu", "lad", "lnd", "lzh", "pbd"]
-                and cached_futures_curve_data is None
-            ):
-                cached_futures_curve_data = lme_futures_curve_data
-
-        if cached_futures_curve_data is None:
-            raise ProductNotFound(
-                'Unable to find any of `["lcu", "lad", "lnd", "lzh", "pbd"]` '
-                "in xlme product short names"
-            )
-
-        lme_3m_datetime = cached_futures_curve_data.three_month
-        lme_cash_datetime = cached_futures_curve_data.cash
-        lme_tom_datetime = cached_futures_curve_data.tom
-        logging.info(
-            "Current LME relative forward datetimes (TOM, CASH, 3M): %s, %s, %s",
-            lme_tom_datetime,
-            lme_cash_datetime,
-            lme_3m_datetime,
-        )
-
-        session.commit()
-
-    redis_pipeline = redis_conn.pipeline()
-    for key in LME_3M_DATE_KEYS:
-        redis_pipeline.set(
-            key + redis_dev_key_append, lme_3m_datetime.strftime(r"%Y%m%d")
-        )
-        logging.debug(
-            "Set 3M redis key `%s` to `%s",
-            key + redis_dev_key_append,
-            lme_3m_datetime.strftime(r"%Y%m%d"),
-        )
-    for key in LME_CASH_DATE_KEYS:
-        redis_pipeline.set(
-            key + redis_dev_key_append, lme_cash_datetime.strftime(r"%Y%m%d")
-        )
-        logging.debug(
-            "Set CASH redis key `%s` to `%s",
-            key + redis_dev_key_append,
-            lme_cash_datetime.strftime(r"%Y%m%d"),
-        )
-    for key in LME_TOM_DATE_KEYS:
-        if lme_tom_datetime is not None:
-            redis_pipeline.set(
-                key + redis_dev_key_append, lme_tom_datetime.strftime(r"%Y%m%d")
-            )
-            logging.debug(
-                "Set TOM redis key `%s` to `%s",
-                key + redis_dev_key_append,
-                lme_tom_datetime.strftime(r"%Y%m%d"),
-            )
-        else:
-            # In the case where there isn't a TOM date (i.e. double cash days)
-            # we want to push no value to Redis for the TOM date so delete it.
-            redis_pipeline.delete(key + redis_dev_key_append)
-            logging.debug(
-                "Cleared TOM redis key `%s` due to double cash day",
-                key + redis_dev_key_append,
-            )
-
-    redis_pipeline.execute()
 
 
 def update_exchange_rate_curves_from_lme(
@@ -238,11 +144,11 @@ def update_currency_interest_curves_from_lme(
             )
             for interest_rate_row_data in interped_interest_rate_df.itertuples():
                 rate_data["legacy"][
-                    interest_rate_row_data.Index.strftime(r"%Y%m%d")
+                    interest_rate_row_data.Index.strftime(r"%Y%m%d")  # type: ignore
                 ] = {"Interest Rate": interest_rate_row_data.interp_cont_rate}
-                rate_data["new"][
-                    interest_rate_row_data.Index.strftime(r"%Y%m%d")
-                ] = interest_rate_row_data.interp_cont_rate
+                rate_data["new"][interest_rate_row_data.Index.strftime(r"%Y%m%d")] = (  # type: ignore
+                    interest_rate_row_data.interp_cont_rate
+                )
         session.commit()
 
     redis_pipeline = redis_conn.pipeline()
@@ -318,9 +224,9 @@ def update_future_closing_prices_from_lme(
             )
             underlying_close_data = {}  # date: interpolated_price
             for row in interpolated_product_curve_df.itertuples():
-                underlying_close_data[
-                    row.Index.to_pydatetime().strftime(r"%Y%m%d")
-                ] = round(row.interpolated_price, 2)
+                underlying_close_data[row.Index.to_pydatetime().strftime(r"%Y%m%d")] = (  # type: ignore
+                    round(row.interpolated_price, 2)  # type: ignore
+                )
             redis_pipeline.set(
                 redis_key + redis_dev_key_append, ujson.dumps(underlying_close_data)
             )
