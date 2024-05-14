@@ -51,7 +51,7 @@ def add_futures_to_database(
     product_symbol: str,
     db_session: orm.Session,
 ) -> List[str]:
-    short_code = product_symbol.lstrip("xlme-").rstrip("-usd").lower()
+    short_code = product_symbol.split("-")[1]
     multiplier = LME_FUTURE_MULTIPLIERS[short_code]
     base_feed_id = LME_FUTURE_3M_FEED_ASSOC[short_code]
     future_params = []
@@ -88,6 +88,9 @@ def add_futures_to_database(
     inserted_future_symbols = (
         db_session.execute(insert_futures_r_fut_sym).scalars().all()
     )
+    logging.info(inserted_future_symbols)
+    if len(inserted_future_symbols) == 0:
+        return []
     db_session.execute(insert_price_feeds)
 
     for new_future_symbol in inserted_future_symbols:
@@ -124,24 +127,24 @@ def add_options_to_database(
     model_type = option_data["vol_surface"]["model_type"]
     model_params = option_data["vol_surface"]["params"]
 
-    transient_table_subq = sqlalchemy.values(
-        sqlalchemy.column("poss_exp_dt", sqlalchemy.DateTime),
-        name="poss_expiry_cte",
-    ).data([(expiry_dt,) for expiry_dt in expiry_dts])
+    full_expiry_set = set(expiry_dts)
     new_expiry_dts = (
-        sqlalchemy.select(transient_table_subq.c.poss_exp_dt)
-        .join(
-            upestatic.Option.expiry,
-            upestatic.Option.expiry == transient_table_subq.c.poss_exp_dt,
-        )
-        .where(upestatic.Option.expiry.is_(None))
+        sqlalchemy.select(upestatic.Option.expiry)
+        .where(upestatic.Option.product_symbol == product.symbol)
+        .where(upestatic.Option.expiry.in_(expiry_dts))
     )
-    new_expiry_dts = db_session.execute(new_expiry_dts).scalars().all()
+    new_expiry_dts = set(db_session.execute(new_expiry_dts).scalars().all())
+    new_expiry_dts = full_expiry_set.difference(new_expiry_dts)
 
+    logging.info(new_expiry_dts)
+    logging.info(option_data)
     vol_surface_params = [
         contract_param_gen.generate_vol_surface(model_type, expiry_dt, model_params)
         for expiry_dt in new_expiry_dts
     ]
+    if len(vol_surface_params) == 0:
+        return []
+
     insert_vol_surfaces = (
         pg_insert(upedynamic.VolSurface)
         .values(vol_surface_params)
@@ -172,6 +175,10 @@ def add_options_to_database(
             vol_type,
             vol_surface_expiry,
             None,
+        )
+        logging.info(option_param)
+        placeholder_future.expiry = option_param["expiry"] + relativedelta(
+            day=1, weekday=WE(3), hour=19, minute=0
         )
         option_obj = upestatic.Option(
             symbol=option_param["symbol"],
@@ -214,6 +221,7 @@ def update_lme_static_data(pg_session: orm.Session, months_ahead=18):
         lme_futures_curve = date_calc_funcs.populate_primary_curve_datetimes(
             holiday_dates, product.holidays, forward_months=months_ahead
         )
+        lme_futures_curve.populate_broken_datetimes()
         futures_prompt_list = lme_futures_curve.gen_prompt_list()
 
         option_expiry_dts = [
@@ -229,4 +237,4 @@ def update_lme_static_data(pg_session: orm.Session, months_ahead=18):
         new_options = add_options_to_database(
             option_expiry_dts, product, prod_specific_op_data, pg_session
         )
-        logging.info("Added %s futures for %s", len(new_options), product.symbol)
+        logging.info("Added %s options for %s", len(new_options), product.symbol)

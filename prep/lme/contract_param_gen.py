@@ -59,13 +59,13 @@ def generate_future_price_feed_associations_params(
             "future_symbol": future_symbol,
             "feed_id": base_feed_id,
             "feed_origin": base_feed_origin,
-            "weight": 1,
+            "weighting": 1,
         },
         {
             "future_symbol": future_symbol,
             "feed_id": "SPREAD_RELATIVE_TO_3M",
             "feed_origin": "local",
-            "weight": 1,
+            "weighting": 1,
         },
     ]
     return future_price_feed_associations
