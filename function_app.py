@@ -106,7 +106,6 @@ def update_exr_data(timer: func.TimerRequest):
     schedule="32 1 20 * * SUN-THU",
     arg_name="timer",
     use_monitor=True,
-    run_on_startup=True,
 )
 def update_lme_date_data(timer: func.TimerRequest):
     logging.info("Starting LME static data update job")

@@ -88,7 +88,7 @@ def add_futures_to_database(
     inserted_future_symbols = (
         db_session.execute(insert_futures_r_fut_sym).scalars().all()
     )
-    logging.info(inserted_future_symbols)
+    logging.debug(inserted_future_symbols)
     if len(inserted_future_symbols) == 0:
         return []
     db_session.execute(insert_price_feeds)
@@ -136,8 +136,8 @@ def add_options_to_database(
     new_expiry_dts = set(db_session.execute(new_expiry_dts).scalars().all())
     new_expiry_dts = full_expiry_set.difference(new_expiry_dts)
 
-    logging.info(new_expiry_dts)
-    logging.info(option_data)
+    logging.debug(new_expiry_dts)
+    logging.debug(option_data)
     vol_surface_params = [
         contract_param_gen.generate_vol_surface(model_type, expiry_dt, model_params)
         for expiry_dt in new_expiry_dts
@@ -176,7 +176,7 @@ def add_options_to_database(
             vol_surface_expiry,
             None,
         )
-        logging.info(option_param)
+        logging.debug(option_param)
         placeholder_future.expiry = option_param["expiry"] + relativedelta(
             day=1, weekday=WE(3), hour=19, minute=0
         )
