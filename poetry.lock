@@ -1530,22 +1530,23 @@ files = [
 
 [[package]]
 name = "upedata"
-version = "0.6.2"
+version = "0.6.4"
 description = "A general collection of ORM classes for use on internal dynamic and static data"
 optional = false
 python-versions = ">=3.10,<4.0"
 files = [
-    {file = "upedata-0.6.2-py3-none-any.whl", hash = "sha256:8e89977ca0e7de2c47ffcadb5fcc3402ce908cad8ea82fa6bc6a4e2fba00e02a"},
+    {file = "upedata-0.6.4-py3-none-any.whl", hash = "sha256:8da37e1fc03ba07c5049a1e059c53b78c892d20e3279148b6280b2b734dd9c3c"},
 ]
 
 [package.dependencies]
 psycopg = {version = ">=3.1.9,<4.0.0", extras = ["binary"]}
+python-dateutil = ">=2.9.0.post0,<3.0.0"
 sqlalchemy = ">=2.0.18,<3.0.0"
 sqlalchemy-json = ">=0.6.0,<0.7.0"
 
 [package.source]
 type = "file"
-url = "dependencies/upedata-0.6.2-py3-none-any.whl"
+url = "dependencies/upedata-0.6.4-py3-none-any.whl"
 
 [[package]]
 name = "urllib3"
@@ -1567,4 +1568,4 @@ zstd = ["zstandard (>=0.18.0)"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.13"
-content-hash = "7afc1ac0c0b4041788ea0a0cd2e6e0810c7c6ce5f53481727da18572789b641a"
+content-hash = "872268d742a05ac7303b0d3f4a0d40216bc1f635058f95f4c2c7eb50d93d1d97"
