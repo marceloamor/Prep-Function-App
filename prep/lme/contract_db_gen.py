@@ -207,7 +207,7 @@ def add_options_to_database(
     return list(new_options)
 
 
-def update_lme_static_data(pg_session: orm.Session, months_ahead=18):
+def update_lme_static_data(pg_session: orm.Session, months_ahead=20):
     with open("./prep/helpers/data_files/lme_option_base_data.json") as fp:
         option_spec_data = json.load(fp)
     for product_symbol, prod_specific_op_data in option_spec_data["specific"].items():
