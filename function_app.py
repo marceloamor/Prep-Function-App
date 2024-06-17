@@ -65,8 +65,8 @@ def update_inr_data(timer: func.TimerRequest):
         redis_conn, pg_engine, first_run=True
     )
     if inr_updated:
-        send_lme_cache_update()
-        send_euronext_cache_update()
+        send_usd_product_cache_update()
+        send_eur_product_cache_update()
 
 
 @app.function_name(name="rjo_sftp_update_fcp_data")
@@ -237,8 +237,26 @@ def send_lme_cache_update():
         send_static_data_update_for_product_ids(REDIS_COMPUTE_CHANNEL, lme_options)
 
 
+def send_ice_cache_updates():
+    logging.info("Sending XICE cache update command on redis")
+    with sqlalchemy.orm.Session(pg_engine) as session:
+        xice_options = get_options_from_exchange_symbol_static_data(session, "xice")
+        send_static_data_update_for_product_ids(REDIS_COMPUTE_CHANNEL, xice_options)
+
+
 def send_euronext_cache_update():
     logging.info("Sending XEXT cache update command on redis")
     with sqlalchemy.orm.Session(pg_engine) as session:
         xext_options = get_options_from_exchange_symbol_static_data(session, "xext")
         send_static_data_update_for_product_ids(REDIS_COMPUTE_CHANNEL, xext_options)
+
+
+def send_usd_product_cache_update():
+    logging.info("Sending USD product update command on redis")
+    send_lme_cache_update()
+    send_ice_cache_updates()
+
+
+def send_eur_product_cache_update():
+    logging.info("Sending EUR product update command on redis")
+    send_euronext_cache_update()
