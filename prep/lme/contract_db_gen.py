@@ -225,7 +225,7 @@ def update_lme_static_data(pg_session: orm.Session, months_ahead=20):
         futures_prompt_list = lme_futures_curve.gen_prompt_list()
 
         option_expiry_dts = [
-            future_expiry + relativedelta(day=1, weekday=WE(1), hour=11, minute=15)
+            future_expiry + relativedelta(day=1, weekday=WE(1), hour=0, minute=0)
             for future_expiry in lme_futures_curve.monthlies
         ]
 
