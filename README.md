@@ -26,4 +26,4 @@ poetry run pytest
 This should ensure everything required is ready to go.
 
 Note: you may need to manually install some other project dependencies such
-as Azure's CLI tools.
+as Azure's CLI and Azurite tools.
