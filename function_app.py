@@ -17,6 +17,7 @@ from zoneinfo import ZoneInfo
 import prep.nightly as nightly_funcs
 from prep import handy_dandy_variables
 from prep.lme import contract_db_gen, date_calc_funcs
+from prep.cme import sol3_redis_ingestion
 
 app = func.FunctionApp()
 
@@ -260,3 +261,17 @@ def send_usd_product_cache_update():
 def send_eur_product_cache_update():
     logging.info("Sending EUR product update command on redis")
     send_euronext_cache_update()
+
+
+# ingestion of sol3 redis data and pushing to postgres
+@app.function_name(name="cme_redis_data_pusher")
+@app.schedule(
+    schedule="30 * * * * 1-5",
+    # schedule="11 11 23 * * 1-5",
+    arg_name="timer",
+    use_monitor=True,
+)
+def redis_data_pusher(timer: func.TimerRequest):
+    logging.info("Pulling redis keys with pattern `sol3:XCME*`")
+    status = sol3_redis_ingestion.push_redis_data_to_postgres(redis_conn, pg_engine)
+    logging.info("Completed pulling sol3 xcme data with status `%s`", status)
