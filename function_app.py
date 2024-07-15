@@ -266,8 +266,7 @@ def send_eur_product_cache_update():
 # ingestion of sol3 redis data and pushing to postgres
 @app.function_name(name="cme_redis_data_pusher")
 @app.schedule(
-    schedule="30 * * * * 1-5",
-    # schedule="11 11 23 * * 1-5",
+    schedule="10 10 22 * * 1-5",
     arg_name="timer",
     use_monitor=True,
 )
