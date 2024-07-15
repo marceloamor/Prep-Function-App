@@ -74,7 +74,7 @@ def test_filter_for_valid_redis_keys():
                 {
                     "100.0": {"v": 0, "dvds": 0.1, "d2vd2s": 0.2},
                     "200.0": {"v": 0, "dvds": 0.2},
-                    "300.0": {"v": 0, "dvds": 0.3},
+                    "300.0": {"v": 0, "dvds": 0.3, "d2vd2s": 0.4},
                 }
             ),
             None,
