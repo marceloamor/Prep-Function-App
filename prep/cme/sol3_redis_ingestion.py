@@ -1,5 +1,3 @@
-import logging
-import os
 import re, json
 from typing import List
 from datetime import datetime
@@ -8,11 +6,8 @@ import redis
 import sqlalchemy
 import sqlalchemy.orm
 from sqlalchemy.dialects.postgresql import insert as pg_insert
-import ujson
 
 from prep import handy_dandy_variables
-
-from icecream import ic
 
 
 redis_dev_key_append = handy_dandy_variables.redis_key_append
