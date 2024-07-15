@@ -207,7 +207,7 @@ def add_options_to_database(
     return list(new_options)
 
 
-def update_lme_static_data(pg_session: orm.Session, months_ahead=18):
+def update_lme_static_data(pg_session: orm.Session, months_ahead=20):
     with open("./prep/helpers/data_files/lme_option_base_data.json") as fp:
         option_spec_data = json.load(fp)
     for product_symbol, prod_specific_op_data in option_spec_data["specific"].items():
@@ -225,7 +225,7 @@ def update_lme_static_data(pg_session: orm.Session, months_ahead=18):
         futures_prompt_list = lme_futures_curve.gen_prompt_list()
 
         option_expiry_dts = [
-            future_expiry + relativedelta(day=1, weekday=WE(1), hour=11, minute=15)
+            future_expiry + relativedelta(day=1, weekday=WE(1), hour=1, minute=1)
             for future_expiry in lme_futures_curve.monthlies
         ]
 

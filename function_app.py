@@ -17,6 +17,7 @@ from zoneinfo import ZoneInfo
 import prep.nightly as nightly_funcs
 from prep import handy_dandy_variables
 from prep.lme import contract_db_gen, date_calc_funcs
+from prep.cme import sol3_redis_ingestion
 
 app = func.FunctionApp()
 
@@ -65,8 +66,8 @@ def update_inr_data(timer: func.TimerRequest):
         redis_conn, pg_engine, first_run=True
     )
     if inr_updated:
-        send_lme_cache_update()
-        send_euronext_cache_update()
+        send_usd_product_cache_update()
+        send_eur_product_cache_update()
 
 
 @app.function_name(name="rjo_sftp_update_fcp_data")
@@ -78,9 +79,7 @@ def update_fcp_data(timer: func.TimerRequest):
     )
     if fcp_updated:
         with pg_engine.connect() as connection:
-            connection.execute(
-                sqlalchemy.text("CALL refresh_materialised_view('most_recent_fcps')")
-            )
+            connection.execute(sqlalchemy.text("CALL refresh_most_recent_fcps()"))
             logging.info("Refreshed most recent future close price materialised view")
         send_lme_cache_update()
 
@@ -239,8 +238,40 @@ def send_lme_cache_update():
         send_static_data_update_for_product_ids(REDIS_COMPUTE_CHANNEL, lme_options)
 
 
+def send_ice_cache_updates():
+    logging.info("Sending XICE cache update command on redis")
+    with sqlalchemy.orm.Session(pg_engine) as session:
+        xice_options = get_options_from_exchange_symbol_static_data(session, "xice")
+        send_static_data_update_for_product_ids(REDIS_COMPUTE_CHANNEL, xice_options)
+
+
 def send_euronext_cache_update():
     logging.info("Sending XEXT cache update command on redis")
     with sqlalchemy.orm.Session(pg_engine) as session:
         xext_options = get_options_from_exchange_symbol_static_data(session, "xext")
         send_static_data_update_for_product_ids(REDIS_COMPUTE_CHANNEL, xext_options)
+
+
+def send_usd_product_cache_update():
+    logging.info("Sending USD product update command on redis")
+    send_lme_cache_update()
+    send_ice_cache_updates()
+
+
+def send_eur_product_cache_update():
+    logging.info("Sending EUR product update command on redis")
+    send_euronext_cache_update()
+
+
+# ingestion of sol3 redis data and pushing to postgres
+@app.function_name(name="cme_redis_data_pusher")
+@app.schedule(
+    schedule="30 * * * * 1-5",
+    # schedule="11 11 23 * * 1-5",
+    arg_name="timer",
+    use_monitor=True,
+)
+def redis_data_pusher(timer: func.TimerRequest):
+    logging.info("Pulling redis keys with pattern `sol3:XCME*`")
+    status = sol3_redis_ingestion.push_redis_data_to_postgres(redis_conn, pg_engine)
+    logging.info("Completed pulling sol3 xcme data with status `%s`", status)
