@@ -33,7 +33,6 @@ def test_filter_for_valid_redis_keys():
         f"sol3:XCME:HXE-{future_date_1}",
         f"sol3:XCME:H5M-{future_date_2}",
         f"sol3:XCME:AX-{future_date_3}",
-
     ]
 
     expected_result = [
@@ -44,7 +43,6 @@ def test_filter_for_valid_redis_keys():
     ]
 
     assert sol3_redis_ingestion.filter_for_valid_redis_keys(strings) == expected_result
-
 
 
 @pytest.mark.parametrize(
