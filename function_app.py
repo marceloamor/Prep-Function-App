@@ -16,8 +16,8 @@ from zoneinfo import ZoneInfo
 
 import prep.nightly as nightly_funcs
 from prep import handy_dandy_variables
-from prep.lme import contract_db_gen, date_calc_funcs
 from prep.cme import sol3_redis_ingestion
+from prep.lme import contract_db_gen, date_calc_funcs
 
 app = func.FunctionApp()
 
@@ -80,6 +80,7 @@ def update_fcp_data(timer: func.TimerRequest):
     if fcp_updated:
         with pg_engine.connect() as connection:
             connection.execute(sqlalchemy.text("CALL refresh_most_recent_fcps()"))
+            connection.commit()
             logging.info("Refreshed most recent future close price materialised view")
         send_lme_cache_update()
 
