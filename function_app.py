@@ -17,7 +17,7 @@ from zoneinfo import ZoneInfo
 import prep.nightly as nightly_funcs
 from prep import handy_dandy_variables
 from prep.lme import contract_db_gen, date_calc_funcs
-from prep.cme import sol3_redis_ingestion
+from prep.data_ingestion import sol3_redis_ingestion
 
 app = func.FunctionApp()
 

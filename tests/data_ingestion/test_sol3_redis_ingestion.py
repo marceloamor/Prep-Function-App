@@ -9,7 +9,7 @@ import json
 from upedata.static_data import Holiday
 from zoneinfo import ZoneInfo
 
-from prep.cme import sol3_redis_ingestion
+from prep.data_ingestion import sol3_redis_ingestion
 
 
 # functions to test:
