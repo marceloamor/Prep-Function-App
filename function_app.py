@@ -16,8 +16,10 @@ from zoneinfo import ZoneInfo
 
 import prep.nightly as nightly_funcs
 from prep import handy_dandy_variables
-from prep.cme import sol3_redis_ingestion
 from prep.lme import contract_db_gen, date_calc_funcs
+from prep.data_ingestion import sol3_redis_ingestion
+from prep.data_ingestion import sftp_file_ingestion
+
 
 app = func.FunctionApp()
 
@@ -267,8 +269,7 @@ def send_eur_product_cache_update():
 # ingestion of sol3 redis data and pushing to postgres
 @app.function_name(name="cme_redis_data_pusher")
 @app.schedule(
-    schedule="30 * * * * 1-5",
-    # schedule="11 11 23 * * 1-5",
+    schedule="10 10 22 * * 1-5",
     arg_name="timer",
     use_monitor=True,
 )
@@ -276,3 +277,64 @@ def redis_data_pusher(timer: func.TimerRequest):
     logging.info("Pulling redis keys with pattern `sol3:XCME*`")
     status = sol3_redis_ingestion.push_redis_data_to_postgres(redis_conn, pg_engine)
     logging.info("Completed pulling sol3 xcme data with status `%s`", status)
+
+
+# ingestion of rjo sftp files and saving to upe sftp server
+@app.function_name(name="daily_sftp_file_saver")
+@app.schedule(
+    schedule="11 11 11 * * 1-5",
+    arg_name="timer",
+    use_monitor=True,
+)
+def daily_sftp_file_saver(timer: func.TimerRequest):
+    # download the most recent file from RJO SFTP
+    logging.info("Connecting to the RJO SFTP server")
+    daily_files_to_fetch = [
+        "UPETRADING_csvnmny_nmny_%Y%m%d.csv",
+        "UPETRADING_csvnpos_npos_%Y%m%d.csv",
+        "UPETRADING_csvth1_dth1_%Y%m%d.csv",
+        "UPETRADING_statement_dstm_%Y%m%d.pdf",
+    ]
+
+    files = sftp_file_ingestion.download_file_from_rjo_sftp(daily_files_to_fetch)
+    if len(files) == 0: 
+        logging.warning("No files found in RJO SFTP")
+        return "No files found in RJO SFTP"
+    logging.info(f"Files successfully downloaded from RJO SFTP: {files}")
+    # post the file to UPE SFTP
+    sftp_file_ingestion.post_file_to_upe_sftp(files)
+    logging.info(f"Files have been successfully posted to UPE SFTP: {files}")
+
+    # clear the temp_assets folder
+    sftp_file_ingestion.clear_temp_assets_after_upload()
+    logging.info("Temp assets folder has been cleared")
+
+
+# ingestion of rjo sftp files and saving to upe sftp server
+@app.function_name(name="monthly_sftp_file_saver")
+@app.schedule(
+    #schedule="11 11 11 * * 1-5",
+    # on the first monday of the month at 18:22:11pm
+    schedule="11 22 18 1-7 * MON",
+    arg_name="timer",
+    use_monitor=True,
+)
+def monthly_sftp_file_saver(timer: func.TimerRequest):
+    # download the most recent file from RJO SFTP
+    logging.info("Connecting to the RJO SFTP server")
+    monthly_files_to_fetch = [
+        "UPETRADING_statement_mstm_%Y%m%d.pdf",
+        "UPETRADING_monthlytrans_mtrn_%Y%m%d.csv",
+    ]
+
+    files = sftp_file_ingestion.download_file_from_rjo_sftp(monthly_files_to_fetch)
+    if len(files) == 0: 
+        return "No files found in RJO SFTP"
+    logging.info(f"Files successfully downloaded from RJO SFTP: {files}")
+    # post the file to UPE SFTP
+    sftp_file_ingestion.post_file_to_upe_sftp(files)
+    logging.info(f"Files have been successfully posted to UPE SFTP: {files}")
+
+    # clear the temp_assets folder
+    sftp_file_ingestion.clear_temp_assets_after_upload()
+    logging.info("Temp assets folder has been cleared")
