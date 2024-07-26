@@ -296,6 +296,7 @@ def daily_sftp_file_saver(timer: func.TimerRequest):
 
     files = sftp_file_ingestion.download_file_from_rjo_sftp(daily_files_to_fetch)
     if len(files) == 0: 
+        logging.warning("No files found in RJO SFTP")
         return "No files found in RJO SFTP"
     logging.info(f"Files successfully downloaded from RJO SFTP: {files}")
     # post the file to UPE SFTP
@@ -311,8 +312,8 @@ def daily_sftp_file_saver(timer: func.TimerRequest):
 @app.function_name(name="monthly_sftp_file_saver")
 @app.schedule(
     #schedule="11 11 11 * * 1-5",
-    # on the 5th day of the month at 11:22:11
-    schedule="11 22 11 05 *",
+    # on the first monday of the month at 18:22:11pm
+    schedule="11 22 18 1-7 * MON",
     arg_name="timer",
     use_monitor=True,
 )
