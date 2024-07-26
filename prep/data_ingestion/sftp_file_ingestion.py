@@ -42,8 +42,8 @@ def download_file_from_rjo_sftp(formats_to_fetch: List[str]) -> List[str]:
     with rjo_sftp_utils.get_rjo_ssh_client() as rjo_ssh:
         with rjo_ssh.open_sftp() as rjo_sftp_client:
             rjo_sftp_client.chdir("/OvernightReports")
-            sftp_files: List[Tuple[datetime, str]] = []
             for file_format in formats_to_fetch:
+                sftp_files: List[Tuple[datetime, str]] = []
                 for filename in rjo_sftp_client.listdir():
                     try:
                         file_date = datetime.strptime(filename, file_format)

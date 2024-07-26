@@ -297,7 +297,7 @@ def daily_sftp_file_saver(timer: func.TimerRequest):
     ]
 
     files = sftp_file_ingestion.download_file_from_rjo_sftp(daily_files_to_fetch)
-    if len(files) == 0: 
+    if len(files) == 0:
         logging.warning("No files found in RJO SFTP")
         return "No files found in RJO SFTP"
     logging.info(f"Files successfully downloaded from RJO SFTP: {files}")
@@ -313,7 +313,6 @@ def daily_sftp_file_saver(timer: func.TimerRequest):
 # ingestion of rjo sftp files and saving to upe sftp server
 @app.function_name(name="monthly_sftp_file_saver")
 @app.schedule(
-    #schedule="11 11 11 * * 1-5",
     # on the first monday of the month at 18:22:11pm
     schedule="11 22 18 1-7 * MON",
     arg_name="timer",
@@ -326,15 +325,22 @@ def monthly_sftp_file_saver(timer: func.TimerRequest):
         "UPETRADING_statement_mstm_%Y%m%d.pdf",
         "UPETRADING_monthlytrans_mtrn_%Y%m%d.csv",
     ]
-
-    files = sftp_file_ingestion.download_file_from_rjo_sftp(monthly_files_to_fetch)
-    if len(files) == 0: 
-        return "No files found in RJO SFTP"
-    logging.info(f"Files successfully downloaded from RJO SFTP: {files}")
+    try:
+        files = sftp_file_ingestion.download_file_from_rjo_sftp(monthly_files_to_fetch)
+        if len(files) == 0:
+            return "No files found in RJO SFTP"
+        logging.info(f"Files successfully downloaded from RJO SFTP: {files}")
+    except Exception as e:
+        logging.error(f"An error occurred while downloading files from RJO SFTP: {e}")
+        return f"An error occurred while downloading files from RJO SFTP: {e}"
     # post the file to UPE SFTP
-    sftp_file_ingestion.post_file_to_upe_sftp(files)
-    logging.info(f"Files have been successfully posted to UPE SFTP: {files}")
-
-    # clear the temp_assets folder
-    sftp_file_ingestion.clear_temp_assets_after_upload()
-    logging.info("Temp assets folder has been cleared")
+    try:
+        sftp_file_ingestion.post_file_to_upe_sftp(files)
+        logging.info(f"Files have been successfully posted to UPE SFTP: {files}")
+    except Exception as e:
+        logging.error(f"An error occurred while posting files to UPE SFTP: {e}")
+        return f"An error occurred while posting files to UPE SFTP: {e}"
+    finally:
+        # clear the temp_assets folder
+        sftp_file_ingestion.clear_temp_assets_after_upload()
+        logging.info("Temp assets folder has been cleared")

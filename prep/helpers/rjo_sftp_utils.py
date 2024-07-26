@@ -27,17 +27,15 @@ def get_rjo_ssh_client() -> paramiko.client.SSHClient:
 def get_upe_ssh_client() -> paramiko.client.SSHClient:
     ssh_client = paramiko.client.SSHClient()
     ssh_client.load_host_keys("./prep/helpers/data_files/rjo_known_hosts")
-    upe_sftp_host = os.getenv(
-        "UPE_SFTP_HOST", "upestorageaccount.blob.core.windows.net"
-    )
+    upe_sftp_host = os.getenv("UPE_SFTP_HOST")
     upe_sftp_port = os.getenv("UPE_SFTP_PORT", "22")
     assert upe_sftp_host is not None, "UPE_SFTP_HOST wasn't provided"
     assert upe_sftp_port is not None, "UPE_SFTP_PORT wasn't provided"
     ssh_client.connect(
         hostname=upe_sftp_host,
         port=int(upe_sftp_port),
-        username=os.getenv("UPE_SFTP_USER", "upestorageaccount.rjofilebackup"),
-        password=os.getenv("UPE_SFTP_PASS", "q/c0QxmI0RItxKv+wSlCkQd90LPXFsqf"),
+        username=os.getenv("UPE_SFTP_USER"),
+        password=os.getenv("UPE_SFTP_PASS"),
     )
     logging.debug("Generated UPE SSH client")
     return ssh_client
