@@ -48,7 +48,7 @@ def push_redis_data_to_postgres(
 
         connection.execute(stmt)
         connection.commit()
-    
+
     log_status = f"{len(entries_to_publish)} matching keys found in redis. {len(update_dict)} records pushed to Postgres successfully!"
     return log_status
 
