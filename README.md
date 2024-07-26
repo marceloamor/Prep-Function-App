@@ -1,6 +1,6 @@
 # Prep Function App
 
-The new single source of dynamic truths stored in Redis and the DB,
+The new single source of dynamic truths stored in Redis, the DB and the UPE SFTP server,
 contains jobs to run on differing frequencies.
 
 ## Information
