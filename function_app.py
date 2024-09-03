@@ -305,9 +305,9 @@ def daily_sftp_file_saver(timer: func.TimerRequest):
     sftp_file_ingestion.post_file_to_upe_sftp(files)
     logging.info(f"Files have been successfully posted to UPE SFTP: {files}")
 
-    # clear the temp_assets folder
-    sftp_file_ingestion.clear_temp_assets_after_upload()
-    logging.info("Temp assets folder has been cleared")
+    # # clear the temp_assets folder
+    # sftp_file_ingestion.clear_temp_assets_after_upload()
+    # logging.info("Temp assets folder has been cleared")
 
 
 # ingestion of rjo sftp files and saving to upe sftp server
@@ -340,7 +340,7 @@ def monthly_sftp_file_saver(timer: func.TimerRequest):
     except Exception as e:
         logging.error(f"An error occurred while posting files to UPE SFTP: {e}")
         return f"An error occurred while posting files to UPE SFTP: {e}"
-    finally:
-        # clear the temp_assets folder
-        sftp_file_ingestion.clear_temp_assets_after_upload()
-        logging.info("Temp assets folder has been cleared")
+    # finally:
+    #     # clear the temp_assets folder
+    #     sftp_file_ingestion.clear_temp_assets_after_upload()
+    #     logging.info("Temp assets folder has been cleared")
