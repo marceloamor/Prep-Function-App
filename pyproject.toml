@@ -18,6 +18,7 @@ upedata = {path = "dependencies/upedata-0.6.4-py3-none-any.whl"}
 requests = "^2.31.0"
 ujson = "^5.8.0"
 paramiko = "^3.3.1"
+Office365-REST-Python-Client = "*"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.7.0"

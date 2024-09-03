@@ -4,6 +4,10 @@ import tempfile
 from datetime import datetime
 from typing import List, Tuple
 
+from office365.runtime.auth.authentication_context import AuthenticationContext
+from office365.runtime.auth.user_credential import UserCredential
+from office365.sharepoint.client_context import ClientContext
+
 from prep.helpers import rjo_sftp_utils
 
 
@@ -90,7 +94,30 @@ def post_file_to_upe_sftp(file_names: List[str]) -> None:
                 )
             logging.info(f"All files have been successfully posted to UPE SFTP")
             return None
-        
+
+# add monthly files to the sharepoint
+def post_file_to_upe_sharepoint(file_names: List[str]) -> None:
+
+    USERNAME = "marcelo.amorelli@upetrading.com"
+    PASSWORD = "" # nice try bill gates, not this time
+    SITE_URL = "https://upetrading1.sharepoint.com/sites/UPETradingSharedLibrary/Documents/Trade%20Report%20History/RJO"
+    
+
+    #CTX = ClientContext(SITE_URL, None).with_credentials(UserCredential(USERNAME, PASSWORD))
+
+    ctx_auth = AuthenticationContext(SITE_URL)
+    if ctx_auth.acquire_token_for_user(USERNAME, PASSWORD):
+        ctx = ClientContext(SITE_URL, ctx_auth)
+        web = ctx.web
+        ctx.load(web)
+        ctx.execute_query()
+        print("Web title: {0}".format(web.properties['Title']))
+    else:
+        #print(ctx_auth.get_last_error())
+        pass
+
+post_file_to_upe_sharepoint(["UPETRADING_statement_mstm_20210801.pdf"])
+
 # required for historical_migration_script, no longer needed for daily_ingestion_script as using tempfile
 def clear_temp_assets_after_upload():
     # get list of files in the temp_assets folder
