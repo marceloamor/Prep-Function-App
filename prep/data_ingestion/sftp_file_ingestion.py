@@ -100,21 +100,26 @@ def clear_temp_assets_after_upload():
         os.remove(f"prep/data_ingestion/temp_assets/{file}")
 
 
-# util function to migrate all historical files from RJO SFTP to UPE SFTP following the specified format
+# not to run for prep daily ingestion, only for historical migration
 def historical_migration_script():
+    """
+    util function to migrate all historical files from RJO SFTP to UPE SFTP following the specified format
+    specify the file name in the filename_pattern variable, and optionally edit the date condition
+    run this function for each desired file type
+    """
     with rjo_sftp_utils.get_rjo_ssh_client() as rjo_ssh:
         with rjo_ssh.open_sftp() as rjo_sftp_client:
             rjo_sftp_client.chdir("/OvernightReports")
             sftp_files: List[Tuple[datetime, str]] = []
             # filename_pattern = f"{file_name}_%Y%m%d.csv"
             filename_pattern = (
-                "UPETRADING_csvnmny_nmny_%Y%m%d.csv"  # SPECIFY FILE NAME HERE
+                "UPETRADING_statement_dstm_%Y%m%d.pdf"  # SPECIFY FILE NAME HERE
             )
             for filename in rjo_sftp_client.listdir():
                 try:
                     file_date = datetime.strptime(filename, filename_pattern)
                     # only add if the date is after 25/07/2024
-                    if file_date > datetime(2024, 7, 25):
+                    if file_date > datetime(2024, 9, 3):
                         sftp_files.append((file_date, filename))
                     #sftp_files.append((file_date, filename))
                 except ValueError:

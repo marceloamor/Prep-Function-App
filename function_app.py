@@ -287,27 +287,30 @@ def redis_data_pusher(timer: func.TimerRequest):
     use_monitor=True,
 )
 def daily_sftp_file_saver(timer: func.TimerRequest):
-    # download the most recent file from RJO SFTP
-    logging.info("Connecting to the RJO SFTP server")
-    daily_files_to_fetch = [
-        "UPETRADING_csvnmny_nmny_%Y%m%d.csv",
-        "UPETRADING_csvnpos_npos_%Y%m%d.csv",
-        "UPETRADING_csvth1_dth1_%Y%m%d.csv",
-        "UPETRADING_statement_dstm_%Y%m%d.pdf",
-    ]
+    if handy_dandy_variables.USE_DEV_KEYS not in ("t", "true", "y", "yes", "1", True):
+        # download the most recent file from RJO SFTP
+        logging.info("Connecting to the RJO SFTP server")
+        daily_files_to_fetch = [
+            "UPETRADING_csvnmny_nmny_%Y%m%d.csv",
+            "UPETRADING_csvnpos_npos_%Y%m%d.csv",
+            "UPETRADING_csvth1_dth1_%Y%m%d.csv",
+            "UPETRADING_statement_dstm_%Y%m%d.pdf",
+        ]
 
-    files = sftp_file_ingestion.download_file_from_rjo_sftp(daily_files_to_fetch)
-    if len(files) == 0:
-        logging.warning("No files found in RJO SFTP")
-        return "No files found in RJO SFTP"
-    logging.info(f"Files successfully downloaded from RJO SFTP: {files}")
-    # post the file to UPE SFTP
-    sftp_file_ingestion.post_file_to_upe_sftp(files)
-    logging.info(f"Files have been successfully posted to UPE SFTP: {files}")
+        files = sftp_file_ingestion.download_file_from_rjo_sftp(daily_files_to_fetch)
+        if len(files) == 0:
+            logging.warning("No files found in RJO SFTP")
+            return "No files found in RJO SFTP"
+        logging.info(f"Files successfully downloaded from RJO SFTP: {files}")
+        # post the file to UPE SFTP
+        sftp_file_ingestion.post_file_to_upe_sftp(files)
+        logging.info(f"Files have been successfully posted to UPE SFTP: {files}")
 
-    # # clear the temp_assets folder
-    # sftp_file_ingestion.clear_temp_assets_after_upload()
-    # logging.info("Temp assets folder has been cleared")
+        # # clear the temp_assets folder
+        # sftp_file_ingestion.clear_temp_assets_after_upload()
+        # logging.info("Temp assets folder has been cleared")
+    else:
+        logging.info("Skipping daily sftp file saver due to dev keys")
 
 
 # ingestion of rjo sftp files and saving to upe sftp server
@@ -319,28 +322,31 @@ def daily_sftp_file_saver(timer: func.TimerRequest):
     use_monitor=True,
 )
 def monthly_sftp_file_saver(timer: func.TimerRequest):
-    # download the most recent file from RJO SFTP
-    logging.info("Connecting to the RJO SFTP server")
-    monthly_files_to_fetch = [
-        "UPETRADING_statement_mstm_%Y%m%d.pdf",
-        "UPETRADING_monthlytrans_mtrn_%Y%m%d.csv",
-    ]
-    try:
-        files = sftp_file_ingestion.download_file_from_rjo_sftp(monthly_files_to_fetch)
-        if len(files) == 0:
-            return "No files found in RJO SFTP"
-        logging.info(f"Files successfully downloaded from RJO SFTP: {files}")
-    except Exception as e:
-        logging.error(f"An error occurred while downloading files from RJO SFTP: {e}")
-        return f"An error occurred while downloading files from RJO SFTP: {e}"
-    # post the file to UPE SFTP
-    try:
-        sftp_file_ingestion.post_file_to_upe_sftp(files)
-        logging.info(f"Files have been successfully posted to UPE SFTP: {files}")
-    except Exception as e:
-        logging.error(f"An error occurred while posting files to UPE SFTP: {e}")
-        return f"An error occurred while posting files to UPE SFTP: {e}"
-    # finally:
-    #     # clear the temp_assets folder
-    #     sftp_file_ingestion.clear_temp_assets_after_upload()
-    #     logging.info("Temp assets folder has been cleared")
+    if handy_dandy_variables.USE_DEV_KEYS not in ("t", "true", "y", "yes", "1", True):
+        # download the most recent file from RJO SFTP
+        logging.info("Connecting to the RJO SFTP server")
+        monthly_files_to_fetch = [
+            "UPETRADING_statement_mstm_%Y%m%d.pdf",
+            "UPETRADING_monthlytrans_mtrn_%Y%m%d.csv",
+        ]
+        try:
+            files = sftp_file_ingestion.download_file_from_rjo_sftp(monthly_files_to_fetch)
+            if len(files) == 0:
+                return "No files found in RJO SFTP"
+            logging.info(f"Files successfully downloaded from RJO SFTP: {files}")
+        except Exception as e:
+            logging.error(f"An error occurred while downloading files from RJO SFTP: {e}")
+            return f"An error occurred while downloading files from RJO SFTP: {e}"
+        # post the file to UPE SFTP
+        try:
+            sftp_file_ingestion.post_file_to_upe_sftp(files)
+            logging.info(f"Files have been successfully posted to UPE SFTP: {files}")
+        except Exception as e:
+            logging.error(f"An error occurred while posting files to UPE SFTP: {e}")
+            return f"An error occurred while posting files to UPE SFTP: {e}"
+        # finally:
+        #     # clear the temp_assets folder
+        #     sftp_file_ingestion.clear_temp_assets_after_upload()
+        #     logging.info("Temp assets folder has been cleared")
+    else:
+        logging.info("Skipping monthly sftp file saver due to dev keys")
